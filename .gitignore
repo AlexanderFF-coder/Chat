@@ -1,0 +1,14 @@
+# Archivos y carpetas de Visual Studio
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+*.tmp
+
+# Archivos generados por Visual Studio
+*.pdb
+*.obj
+*.exe
