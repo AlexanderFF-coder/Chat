@@ -1,6 +1,6 @@
 ﻿namespace Chat_Interfaces
 {
-    partial class Form1
+    partial class InicioSesion
     {
         /// <summary>
         /// Variable del diseñador necesaria.
@@ -42,40 +42,43 @@
             // lblEmail
             // 
             this.lblEmail.AutoSize = true;
-            this.lblEmail.Location = new System.Drawing.Point(121, 35);
+            this.lblEmail.Location = new System.Drawing.Point(136, 44);
             this.lblEmail.Name = "lblEmail";
-            this.lblEmail.Size = new System.Drawing.Size(117, 16);
+            this.lblEmail.Size = new System.Drawing.Size(138, 20);
             this.lblEmail.TabIndex = 0;
             this.lblEmail.Text = "Correo electrónico";
             // 
             // textBoxEmail
             // 
-            this.textBoxEmail.Location = new System.Drawing.Point(59, 67);
+            this.textBoxEmail.Location = new System.Drawing.Point(66, 84);
+            this.textBoxEmail.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.textBoxEmail.Name = "textBoxEmail";
-            this.textBoxEmail.Size = new System.Drawing.Size(250, 22);
+            this.textBoxEmail.Size = new System.Drawing.Size(281, 26);
             this.textBoxEmail.TabIndex = 1;
             // 
             // lblPassword
             // 
             this.lblPassword.AutoSize = true;
-            this.lblPassword.Location = new System.Drawing.Point(144, 136);
+            this.lblPassword.Location = new System.Drawing.Point(162, 170);
             this.lblPassword.Name = "lblPassword";
-            this.lblPassword.Size = new System.Drawing.Size(76, 16);
+            this.lblPassword.Size = new System.Drawing.Size(92, 20);
             this.lblPassword.TabIndex = 2;
             this.lblPassword.Text = "Contraseña";
             // 
             // textBoxPassword
             // 
-            this.textBoxPassword.Location = new System.Drawing.Point(71, 174);
+            this.textBoxPassword.Location = new System.Drawing.Point(80, 218);
+            this.textBoxPassword.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.textBoxPassword.Name = "textBoxPassword";
-            this.textBoxPassword.Size = new System.Drawing.Size(220, 22);
+            this.textBoxPassword.Size = new System.Drawing.Size(247, 26);
             this.textBoxPassword.TabIndex = 3;
             // 
             // btnLogin
             // 
-            this.btnLogin.Location = new System.Drawing.Point(124, 250);
+            this.btnLogin.Location = new System.Drawing.Point(140, 312);
+            this.btnLogin.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnLogin.Name = "btnLogin";
-            this.btnLogin.Size = new System.Drawing.Size(114, 23);
+            this.btnLogin.Size = new System.Drawing.Size(128, 29);
             this.btnLogin.TabIndex = 4;
             this.btnLogin.Text = "Iniciar sesión";
             this.btnLogin.UseVisualStyleBackColor = true;
@@ -86,11 +89,12 @@
             this.lblRegistro.Cursor = System.Windows.Forms.Cursors.Hand;
             this.lblRegistro.Font = new System.Drawing.Font("Microsoft Sans Serif", 7.8F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblRegistro.ForeColor = System.Drawing.SystemColors.HotTrack;
-            this.lblRegistro.Location = new System.Drawing.Point(130, 346);
+            this.lblRegistro.Location = new System.Drawing.Point(162, 432);
             this.lblRegistro.Name = "lblRegistro";
-            this.lblRegistro.Size = new System.Drawing.Size(77, 16);
+            this.lblRegistro.Size = new System.Drawing.Size(91, 20);
             this.lblRegistro.TabIndex = 5;
             this.lblRegistro.Text = "Registrarse";
+            this.lblRegistro.Click += new System.EventHandler(this.lblRegistro_Click);
             // 
             // panelLogin
             // 
@@ -102,31 +106,34 @@
             this.panelLogin.Controls.Add(this.btnLogin);
             this.panelLogin.Controls.Add(this.lblPassword);
             this.panelLogin.Controls.Add(this.textBoxPassword);
-            this.panelLogin.Location = new System.Drawing.Point(85, 95);
+            this.panelLogin.Location = new System.Drawing.Point(84, 120);
+            this.panelLogin.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.panelLogin.Name = "panelLogin";
-            this.panelLogin.Size = new System.Drawing.Size(350, 446);
+            this.panelLogin.Size = new System.Drawing.Size(394, 558);
             this.panelLogin.TabIndex = 6;
             // 
             // labelPregunta
             // 
             this.labelPregunta.AutoSize = true;
-            this.labelPregunta.Location = new System.Drawing.Point(104, 330);
+            this.labelPregunta.Location = new System.Drawing.Point(117, 412);
             this.labelPregunta.Name = "labelPregunta";
-            this.labelPregunta.Size = new System.Drawing.Size(146, 16);
+            this.labelPregunta.Size = new System.Drawing.Size(178, 20);
             this.labelPregunta.TabIndex = 6;
             this.labelPregunta.Text = "¿No tienes cuenta aún?";
             // 
-            // Form1
+            // InicioSesion
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(482, 553);
+            this.ClientSize = new System.Drawing.Size(542, 691);
             this.Controls.Add(this.panelLogin);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.Name = "Form1";
+            this.Name = "InicioSesion";
             this.Text = "Inicio de sesión";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.InicioSesion_FormClosing);
             this.panelLogin.ResumeLayout(false);
             this.panelLogin.PerformLayout();
             this.ResumeLayout(false);

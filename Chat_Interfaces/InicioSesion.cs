@@ -10,9 +10,9 @@ using System.Windows.Forms;
 
 namespace Chat_Interfaces
 {
-    public partial class Form1 : Form
+    public partial class InicioSesion : Form
     {
-        public Form1()
+        public InicioSesion()
         {
             InitializeComponent();
 
@@ -43,7 +43,16 @@ namespace Chat_Interfaces
 
         private void lblRegistro_Click(object sender, EventArgs e)
         {
-            //redirigir al formulario de registro
+            Registrarse nuevaVentana = new Registrarse();
+
+            nuevaVentana.Show();
+
+            this.Hide();
+        }
+
+        private void InicioSesion_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            Application.Exit();
         }
     }
 }
