@@ -54,5 +54,12 @@ namespace Chat_Interfaces
         {
             Application.Exit();
         }
+
+        private void btnLogin_Click(object sender, EventArgs e)
+        {
+            Chat chatW= new Chat();
+            chatW.Show();
+            this.Hide();
+        }
     }
 }

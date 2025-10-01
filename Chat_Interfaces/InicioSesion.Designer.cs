@@ -42,46 +42,49 @@
             // lblEmail
             // 
             this.lblEmail.AutoSize = true;
-            this.lblEmail.Location = new System.Drawing.Point(136, 44);
+            this.lblEmail.Location = new System.Drawing.Point(91, 29);
+            this.lblEmail.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.lblEmail.Name = "lblEmail";
-            this.lblEmail.Size = new System.Drawing.Size(138, 20);
+            this.lblEmail.Size = new System.Drawing.Size(93, 13);
             this.lblEmail.TabIndex = 0;
             this.lblEmail.Text = "Correo electrónico";
             // 
             // textBoxEmail
             // 
-            this.textBoxEmail.Location = new System.Drawing.Point(66, 84);
-            this.textBoxEmail.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.textBoxEmail.Location = new System.Drawing.Point(44, 55);
+            this.textBoxEmail.Margin = new System.Windows.Forms.Padding(2, 3, 2, 3);
             this.textBoxEmail.Name = "textBoxEmail";
-            this.textBoxEmail.Size = new System.Drawing.Size(281, 26);
+            this.textBoxEmail.Size = new System.Drawing.Size(189, 20);
             this.textBoxEmail.TabIndex = 1;
             // 
             // lblPassword
             // 
             this.lblPassword.AutoSize = true;
-            this.lblPassword.Location = new System.Drawing.Point(162, 170);
+            this.lblPassword.Location = new System.Drawing.Point(108, 110);
+            this.lblPassword.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.lblPassword.Name = "lblPassword";
-            this.lblPassword.Size = new System.Drawing.Size(92, 20);
+            this.lblPassword.Size = new System.Drawing.Size(61, 13);
             this.lblPassword.TabIndex = 2;
             this.lblPassword.Text = "Contraseña";
             // 
             // textBoxPassword
             // 
-            this.textBoxPassword.Location = new System.Drawing.Point(80, 218);
-            this.textBoxPassword.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.textBoxPassword.Location = new System.Drawing.Point(53, 142);
+            this.textBoxPassword.Margin = new System.Windows.Forms.Padding(2, 3, 2, 3);
             this.textBoxPassword.Name = "textBoxPassword";
-            this.textBoxPassword.Size = new System.Drawing.Size(247, 26);
+            this.textBoxPassword.Size = new System.Drawing.Size(166, 20);
             this.textBoxPassword.TabIndex = 3;
             // 
             // btnLogin
             // 
-            this.btnLogin.Location = new System.Drawing.Point(140, 312);
-            this.btnLogin.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.btnLogin.Location = new System.Drawing.Point(93, 203);
+            this.btnLogin.Margin = new System.Windows.Forms.Padding(2, 3, 2, 3);
             this.btnLogin.Name = "btnLogin";
-            this.btnLogin.Size = new System.Drawing.Size(128, 29);
+            this.btnLogin.Size = new System.Drawing.Size(85, 19);
             this.btnLogin.TabIndex = 4;
             this.btnLogin.Text = "Iniciar sesión";
             this.btnLogin.UseVisualStyleBackColor = true;
+            this.btnLogin.Click += new System.EventHandler(this.btnLogin_Click);
             // 
             // lblRegistro
             // 
@@ -89,9 +92,10 @@
             this.lblRegistro.Cursor = System.Windows.Forms.Cursors.Hand;
             this.lblRegistro.Font = new System.Drawing.Font("Microsoft Sans Serif", 7.8F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblRegistro.ForeColor = System.Drawing.SystemColors.HotTrack;
-            this.lblRegistro.Location = new System.Drawing.Point(162, 432);
+            this.lblRegistro.Location = new System.Drawing.Point(108, 281);
+            this.lblRegistro.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.lblRegistro.Name = "lblRegistro";
-            this.lblRegistro.Size = new System.Drawing.Size(91, 20);
+            this.lblRegistro.Size = new System.Drawing.Size(60, 13);
             this.lblRegistro.TabIndex = 5;
             this.lblRegistro.Text = "Registrarse";
             this.lblRegistro.Click += new System.EventHandler(this.lblRegistro_Click);
@@ -106,29 +110,30 @@
             this.panelLogin.Controls.Add(this.btnLogin);
             this.panelLogin.Controls.Add(this.lblPassword);
             this.panelLogin.Controls.Add(this.textBoxPassword);
-            this.panelLogin.Location = new System.Drawing.Point(84, 120);
-            this.panelLogin.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.panelLogin.Location = new System.Drawing.Point(56, 78);
+            this.panelLogin.Margin = new System.Windows.Forms.Padding(2, 3, 2, 3);
             this.panelLogin.Name = "panelLogin";
-            this.panelLogin.Size = new System.Drawing.Size(394, 558);
+            this.panelLogin.Size = new System.Drawing.Size(263, 363);
             this.panelLogin.TabIndex = 6;
             // 
             // labelPregunta
             // 
             this.labelPregunta.AutoSize = true;
-            this.labelPregunta.Location = new System.Drawing.Point(117, 412);
+            this.labelPregunta.Location = new System.Drawing.Point(78, 268);
+            this.labelPregunta.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.labelPregunta.Name = "labelPregunta";
-            this.labelPregunta.Size = new System.Drawing.Size(178, 20);
+            this.labelPregunta.Size = new System.Drawing.Size(121, 13);
             this.labelPregunta.TabIndex = 6;
             this.labelPregunta.Text = "¿No tienes cuenta aún?";
             // 
             // InicioSesion
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(542, 691);
+            this.ClientSize = new System.Drawing.Size(361, 449);
             this.Controls.Add(this.panelLogin);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.Margin = new System.Windows.Forms.Padding(2, 3, 2, 3);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "InicioSesion";

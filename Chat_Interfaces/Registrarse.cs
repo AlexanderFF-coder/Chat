@@ -101,6 +101,11 @@ namespace Chat_Interfaces
                 ventanaSesion.Show();
             }
         }
+
+        private void Registrarse_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 
 
