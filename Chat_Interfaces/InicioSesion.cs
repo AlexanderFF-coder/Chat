@@ -15,6 +15,7 @@ namespace Chat_Interfaces
     public partial class InicioSesion : Form
     {
         private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         private MySqlConnection conexion;
         private MySqlCommand comando;
@@ -28,6 +29,8 @@ namespace Chat_Interfaces
             panelLogin.Resize += (s, e) => CenterControlsInPanel();
             textBoxEmail.KeyDown += TextBoxEmail_KeyDown;
             textBoxPassword.UseSystemPasswordChar = true;
+
+            conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
         }
 
         //este metodo centra los controles dentro del panel
