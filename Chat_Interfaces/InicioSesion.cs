@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Security.Cryptography;
+using MySql.Data.MySqlClient;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -12,6 +14,12 @@ namespace Chat_Interfaces
 {
     public partial class InicioSesion : Form
     {
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+
+        private MySqlConnection conexion;
+        private MySqlCommand comando;
+        private MySqlDataReader leer;
+
         public InicioSesion()
         {
             InitializeComponent();
@@ -57,9 +65,97 @@ namespace Chat_Interfaces
 
         private void btnLogin_Click(object sender, EventArgs e)
         {
-            Chat chatW= new Chat();
-            chatW.Show();
-            this.Hide();
+            string email = textBoxEmail.Text.Trim();
+            string password = textBoxPassword.Text;
+            string hashedPassword = string.Empty;
+
+            // Validar que los campos no esten vacios
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+            {
+                MessageBox.Show("Por favor, ingrese email y contraseña.", "Campos Vacíos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Bloque de Código para la consulta de la contraseña en la base de datos
+            try
+            {
+                conexion.Open();
+
+                string query = "SELECT password FROM usuarios WHERE email = @email";
+
+                comando = new MySqlCommand(query, conexion);
+                comando.Parameters.AddWithValue("@email", email);
+
+                leer = comando.ExecuteReader();
+
+                if (leer.Read())
+                {
+                    //Si encuentra el usuario, obtiene la contraseña hasheada
+                    hashedPassword = leer["password"].ToString();
+                }
+
+                leer.Close(); //Cerrat lector
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al conectar con la base de datos: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            finally
+            {
+                if (conexion.State == ConnectionState.Open)
+                    conexion.Close();
+            }
+
+            
+            if (string.IsNullOrEmpty(hashedPassword))
+            {
+                // Si no se encuentra el usuario
+                MessageBox.Show("Usuario no encontrado.", "Error de Inicio de Sesión", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            bool isPasswordValid = PasswordHelper.VerifyPassword(password, hashedPassword);
+
+            if (isPasswordValid)
+            {
+                MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Si el login es exitoso, abrir la ventana de chat
+                Chat chatW = new Chat();
+                chatW.Show();
+                this.Hide();
+            }
+            else
+            {
+                //Contraseña incorrecta
+                MessageBox.Show("Contraseña incorrecta. Inténtalo de nuevo.", "Error de Inicio de Sesión", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
         }
+
+    }
+}
+
+public static class PasswordHelper
+{
+    // Metodo para hashear la contraseña usando SHA256
+    public static string HashPassword(string password)
+    {
+        using (SHA256 sha256 = SHA256.Create())
+        {
+            byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            StringBuilder builder = new StringBuilder();
+            foreach (byte b in bytes)
+            {
+                builder.Append(b.ToString("x2"));
+            }
+            return builder.ToString();
+        }
+    }
+
+    public static bool VerifyPassword(string enteredPassword, string storedHash)
+    {
+        string enteredHash = HashPassword(enteredPassword);
+        return string.Equals(enteredHash, storedHash, StringComparison.OrdinalIgnoreCase);
     }
 }
