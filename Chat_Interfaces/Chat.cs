@@ -13,6 +13,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
         //Variables para manejar base de datos
         MySqlConnection conexion;
         MySqlCommand comando;
@@ -75,7 +77,7 @@ namespace Chat_Interfaces
         private void Chat_VisibleChanged(object sender, EventArgs e)
         {
             //Cuando es visible lee chat
-            conexion=new MySqlConnection("Server=localhost;Port=3306;Database=test;Uid=Alex;Pwd=12345");
+            conexion=new MySqlConnection(MYSQL_CONNECTION_STRING);
             conexion.Open();
             comando=new MySqlCommand("SELECT Nombre_grupo FROM  grupo", conexion);
             leer=comando.ExecuteReader();
@@ -93,7 +95,7 @@ namespace Chat_Interfaces
         {
             int id=0;
             //Pasa los mensajes a la base de datos
-            conexion=new MySqlConnection("Server=localhost;Port=3306;Database=test;Uid=Alex;Pwd=12345");
+            conexion=new MySqlConnection(MYSQL_CONNECTION_STRING);
             conexion.Open();
             //Obtiene el nombre del grupo y la clave del grupo
             string grupo=listBox1.SelectedItem.ToString();
