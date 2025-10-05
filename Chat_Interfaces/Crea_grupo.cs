@@ -15,6 +15,9 @@ namespace Chat_Interfaces
         MySqlConnection conexion;
         MySqlCommand comando;
         MySqlDataReader leer;
+        MySqlCommand comando1;
+        MySqlDataReader leer1;
+        string id = Chat.Sesionid1.IdUsuario;
         public Crea_grupo()
         {
             InitializeComponent();
@@ -31,21 +34,45 @@ namespace Chat_Interfaces
         {
             //Obtenemos los datos de textbox y checamos que no esten vacios
             string nombre =textBox1.Text;
-            string clave=textBox2.Text;
             if (nombre=="")
             {
                 MessageBox.Show("No puedes tener nombre de grupo vacio");
                 return;
             }
-            if(clave=="")
+            int rand=0,id=1,num=0;
+            string val;
+            //Genera una clave de grupo aleatoria que no exista
+            while(id!=0)
             {
-                MessageBox.Show("No puedes tener clave vacia vacio");
+                Random r = new Random();
+                rand = r.Next(1, 1000000);
+                comando1 = new MySqlCommand("SELECT clave_grupo FROM grupo", conexion);
+                leer1=comando1.ExecuteReader();
+                id=0;
+                while(leer1.Read())
+                {
+                    val=(string)leer1["clave_grupo"];
+                    num=int.Parse(val);
+                    if (rand==num)
+                    {
+                        id=1;
+                        break;
+                    }
+                }
             }
-            comando=new MySqlCommand("INSERT INTO grupo (clave_grupo,Nombre_grupo) \r\nvalues(@clav,@nom) ;", conexion);
-            comando.Parameters.AddWithValue("@clav", clave);
+            comando1.Dispose();
+            leer1.Close();
+            comando =new MySqlCommand("INSERT INTO grupo (clave_grupo,Nombre_grupo) \r\nvalues(@clav,@nom) ;", conexion);
+            comando.Parameters.AddWithValue("@clav", rand);
             comando.Parameters.AddWithValue("@nom", nombre);
             comando.ExecuteNonQuery();
             this.Hide();
+            comando.Dispose();
+            comando=new MySqlCommand("INSERT into miembros_grupos(id_usuarios,id_grupo) \r\nvalues(@idu,@idg) ;", conexion);
+            comando.Parameters.AddWithValue("@idu", id);
+            comando.Parameters.AddWithValue("@idg", rand);
+            comando.ExecuteNonQuery();
+            comando.Dispose();
             Chat chat = new Chat();
             chat.Show();
         }

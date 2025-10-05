@@ -9,13 +9,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Chat_Interfaces;
 
 namespace Chat_Interfaces
 {
     public partial class InicioSesion : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         private MySqlConnection conexion;
         private MySqlCommand comando;
@@ -110,7 +111,7 @@ namespace Chat_Interfaces
                     conexion.Close();
             }
 
-            
+
             if (string.IsNullOrEmpty(hashedPassword))
             {
                 // Si no se encuentra el usuario
@@ -123,6 +124,15 @@ namespace Chat_Interfaces
             if (isPasswordValid)
             {
                 MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                //Gurardamos el id
+                comando = new MySqlCommand("Select id from usuarios where email=@mail", conexion);
+                comando.Parameters.AddWithValue("@mail", email);
+                conexion.Open();
+                leer = comando.ExecuteReader();
+                while (leer.Read())
+                {
+                    InicioSesion.Sesionid.IdUsuario= leer["id"].ToString();
+                }
                 // Si el login es exitoso, abrir la ventana de chat
                 Chat chatW = new Chat();
                 chatW.Show();
@@ -135,6 +145,11 @@ namespace Chat_Interfaces
             }
 
         }
+        public static class Sesionid
+        {
+            public static string IdUsuario;
+        }
+
 
     }
 }
@@ -161,4 +176,5 @@ public static class PasswordHelper
         string enteredHash = HashPassword(enteredPassword);
         return string.Equals(enteredHash, storedHash, StringComparison.OrdinalIgnoreCase);
     }
+
 }

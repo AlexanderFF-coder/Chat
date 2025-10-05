@@ -15,8 +15,8 @@ namespace Chat_Interfaces
 {
     public partial class Registrarse : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         private MySqlConnection conexion;
         private MySqlCommand comando;
@@ -118,13 +118,16 @@ namespace Chat_Interfaces
                 }
 
                 // Insertar nuevo usuario
-                string query = "INSERT INTO usuarios (nombre, email, password) VALUES (@nombre, @correo, @password)";
+                string query = "INSERT INTO usuarios (nombre, email, password,fecha) VALUES (@nombre, @correo, @password,@fecha)";
 
                 using (comando = new MySqlCommand(query, conexion))
                 {
                     comando.Parameters.AddWithValue("@nombre", nombre);
                     comando.Parameters.AddWithValue("@correo", email);
                     comando.Parameters.AddWithValue("@password", hashedPass);
+                    //Obtengo la fecha que indico en el formato año mes y dia
+                    string fecha=dateTimeFechaNac.Value.ToString("yyyy-MM-dd");
+                    comando.Parameters.AddWithValue("@fecha",fecha );
                 }
 
                 int filasAfectadas = comando.ExecuteNonQuery();
