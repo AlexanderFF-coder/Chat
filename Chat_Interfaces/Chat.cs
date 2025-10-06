@@ -20,12 +20,12 @@ namespace Chat_Interfaces
         MySqlConnection conexion;
         MySqlCommand comando;
         MySqlDataReader leer;
-        string id=InicioSesion.Sesionid.IdUsuario;
+        private static string id;
         public Chat()
         {
             InitializeComponent();
-            listBox1.Items.Clear();          
-            Sesionid1.IdUsuario1 = id;
+            listBox1.Items.Clear();
+            id=InicioSesion.Sesionid.IdUsuario;
         }
 
         private void Chat_Load(object sender, EventArgs e)
@@ -63,7 +63,7 @@ namespace Chat_Interfaces
                 }
             }
         }
-
+        //Pendiente
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
             //Crea un chat a partir del grupo seleccionado
@@ -122,11 +122,12 @@ namespace Chat_Interfaces
             crea.Show();
             this.Hide();
         }
-
+        //Pendiente
         private void Chat_VisibleChanged(object sender, EventArgs e)
         {
+            listBox1.Items.Clear(); 
             //Cuando es visible lee chat
-            conexion=new MySqlConnection(MYSQL_CONNECTION_STRING);
+            conexion =new MySqlConnection(MYSQL_CONNECTION_STRING);
             conexion.Open();
             comando=new MySqlCommand("SELECT Nombre_grupo FROM  grupo", conexion);
             leer=comando.ExecuteReader();
@@ -139,26 +140,47 @@ namespace Chat_Interfaces
             leer.Close();
             comando.Dispose();
             //Eliminamos los grupos que no corresponden a la persona con el id de inicio
-            for (int i = 0; i < listBox1.Items.Count; i++)
+            for (int i = 0; i < listBox1.Items.Count; i=i+2)
             {
-                comando = new MySqlCommand("Select id_usuarios from miembros_grupos where id_usuarios=@id", conexion);
-                comando.Parameters.AddWithValue("@id", id);
-                leer = comando.ExecuteReader();
-                int checa = 0;
+                //Checamos el id del grupo
+                string nom=listBox1.Items[i].ToString();
+                comando=new MySqlCommand("Select id from grupo where Nombre_grupo=@nom",conexion);
+                comando.Parameters.AddWithValue("@nom",nom);
+                leer=comando.ExecuteReader();
+                int idob=0;
                 while (leer.Read())
                 {
-                    checa = (int)leer["id_usuarios"];
+                    idob= (int)leer["id"];
                 }
                 leer.Close();
                 comando.Dispose();
-                if (checa == 0)
+                if (idob == 0)
+                {
+                    listBox1.Items.RemoveAt(i);
+                    i--;
+                    //Se usa continue porque no encontro el id de ese grupo 
+                    continue;
+                }
+                //Ahora checa el id de miembro grupo al actual
+                comando=new MySqlCommand("Select id_usuarios from miembros_grupos where id_grupo=@id",conexion);
+                comando.Parameters.AddWithValue("@id",idob);
+                leer=comando.ExecuteReader();
+                int id2=0;
+                while (leer.Read())
+                {
+                    id2=(int)leer["id_usuarios"];
+                }
+                leer.Close();
+                comando.Dispose();
+                if (id2!=int.Parse(id))
                 {
                     listBox1.Items.RemoveAt(i);
                     i--;
                 }
+
             }
         }
-
+        //Pendiente
         private void label2_Click(object sender, EventArgs e)
         {
             int id=0;
@@ -189,9 +211,9 @@ namespace Chat_Interfaces
             textBox2.Clear();
             conexion.Close();
         }
-    }
-    public static class Sesionid1
-    {
-        public static string IdUsuario1;
+        public static class Sesionid1
+        {
+            public static string IdUsuario1=id;
+        }
     }
 }

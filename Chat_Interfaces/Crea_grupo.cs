@@ -17,7 +17,8 @@ namespace Chat_Interfaces
         MySqlDataReader leer;
         MySqlCommand comando1;
         MySqlDataReader leer1;
-        string id = Chat.Sesionid1.IdUsuario;
+        string id = Chat.Sesionid1.IdUsuario1;
+
         public Crea_grupo()
         {
             InitializeComponent();
@@ -39,23 +40,23 @@ namespace Chat_Interfaces
                 MessageBox.Show("No puedes tener nombre de grupo vacio");
                 return;
             }
-            int rand=0,id=1,num=0;
+            int rand=0,id1=1,num=0;
             string val;
             //Genera una clave de grupo aleatoria que no exista
-            while(id!=0)
+            while(id1!=0)
             {
                 Random r = new Random();
                 rand = r.Next(1, 1000000);
                 comando1 = new MySqlCommand("SELECT clave_grupo FROM grupo", conexion);
                 leer1=comando1.ExecuteReader();
-                id=0;
+                id1=0;
                 while(leer1.Read())
                 {
                     val=(string)leer1["clave_grupo"];
                     num=int.Parse(val);
                     if (rand==num)
                     {
-                        id=1;
+                        id1=1;
                         break;
                     }
                 }
