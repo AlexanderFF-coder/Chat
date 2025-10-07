@@ -22,7 +22,8 @@ namespace Chat_Interfaces
         public Crea_grupo()
         {
             InitializeComponent();
-            conexion = new MySqlConnection("Server=localhost;Port=3306;Database=test;Uid=Alex;Pwd=12345");
+            //conexion = new MySqlConnection("Server=localhost;Port=3306;Database=test;Uid=Alex;Pwd=12345");
+            conexion = new MySqlConnection("Server=localhost;Port=3306;Database=chat;Uid=root;Pwd=Alex");
             conexion.Open();
         }
 

@@ -14,8 +14,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
         //Variables para manejar base de datos
         MySqlConnection conexion;
         MySqlCommand comando;
@@ -26,7 +26,52 @@ namespace Chat_Interfaces
             InitializeComponent();
             listBox1.Items.Clear();
             id = InicioSesion.Sesionid.IdUsuario;
+
+            buttonEmoji.Click += btnEmoji_Click;
+            this.Controls.Add(buttonEmoji);
+
+            btnEmojiSmile.Click += Emoji_Click;
+            btnEmojiHeart.Click += Emoji_Click;
+            btnEmojiSad.Click += Emoji_Click;
+
+            this.Controls.Add(panelEmojis);
+            panelEmojis.BringToFront();
+
+            //estos son para cerrar el panel de emojis al hacer clic fuera de él
+            //si llegan a agregar mas tools pongan: tool.MouseDown += Chat_MouseDown;
+            this.MouseDown += Chat_MouseDown;
+            listBox1.MouseDown += Chat_MouseDown;
+            panel1.MouseDown += Chat_MouseDown;
+            textBox1.MouseDown += Chat_MouseDown;
+            textBox2.MouseDown += Chat_MouseDown;
+            label1.MouseDown += Chat_MouseDown;
+            label2.MouseDown += Chat_MouseDown;
         }
+
+        private void btnEmoji_Click(object sender, EventArgs e)
+        {
+            panelEmojis.Visible = !panelEmojis.Visible; // Mostrar u ocultar el panel de emojis
+        }
+
+        private void Emoji_Click(object sender, EventArgs e)
+        {
+            Button emojiButton = sender as Button;
+            if (emojiButton != null)
+            {
+                textBox2.Text += emojiButton.Text; // Añade emoji al texto del mensaje
+            }
+        }
+
+        private void Chat_MouseDown(object sender, MouseEventArgs e)
+        {
+            // Si el panel de emojis está visible y el clic NO fue dentro de él
+            if (panelEmojis.Visible && !panelEmojis.Bounds.Contains(e.Location) && !buttonEmoji.Bounds.Contains(e.Location))
+            {
+                panelEmojis.Visible = false;
+            }
+        }
+
+
 
         private void Chat_Load(object sender, EventArgs e)
         {
@@ -139,7 +184,10 @@ namespace Chat_Interfaces
                 Label txt = new Label();
                 txt.Width = pan.Width - 10;
                 txt.Height = pan.Height - 10;
-                txt.Text = leer[leer.GetOrdinal("contenido")].ToString();
+
+                //por si el usuario usó texto plano pa representar un emoji
+                txt.Text = ConvertirTextoPlanoAEmojis(leer["contenido"].ToString());
+
                 pan.Controls.Add(txt);
                 //Agrega  a principal
                 panel1.Controls.Add(pan);
@@ -243,9 +291,11 @@ namespace Chat_Interfaces
                 return;
             }
             //Inserta el mensaje en la base de datos
+            string textoPlano = ConvertirEmojisATextoPlano(textBox2.Text);
+
             comando = new MySqlCommand("INSERT INTO mensajes (Id_grupo,contenido) \r\nvalues(@id,@cont) ;", conexion);
             comando.Parameters.AddWithValue("@id",id);
-            comando.Parameters.AddWithValue("@cont",textBox2.Text);
+            comando.Parameters.AddWithValue("@cont",textoPlano);
             comando.ExecuteNonQuery();
             comando.Dispose();
 
@@ -270,6 +320,26 @@ namespace Chat_Interfaces
             panel1.Controls.Add(lab);
             textBox2.Clear();
         }
+
+        private string ConvertirEmojisATextoPlano(string texto)
+        {
+            //por si el usuario escribió un emoji real
+            texto = texto.Replace("😁", ":smile:");
+            texto = texto.Replace("❤️", ":heart:");
+            texto = texto.Replace("😔", ":sad:");
+            return texto;
+        }
+
+        //metodo por si el usuario puso texto plano pa representar un emoji 
+        private string ConvertirTextoPlanoAEmojis(string texto)
+        {
+            texto = texto.Replace(":smile:", "😁");
+            texto = texto.Replace(":heart:", "❤️");
+            texto = texto.Replace(":sad:", "😔");
+            return texto;
+        }
+
+
         public static class Sesionid1
         {
             public static string IdUsuario1=id;
