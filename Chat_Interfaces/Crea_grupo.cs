@@ -47,7 +47,7 @@ namespace Chat_Interfaces
             {
                 Random r = new Random();
                 rand = r.Next(1, 1000000);
-                comando1 = new MySqlCommand("SELECT clave_grupo FROM grupo", conexion);
+                comando1 = new MySqlCommand("SELECT clave_grupo FROM grupos", conexion);
                 leer1=comando1.ExecuteReader();
                 id1=0;
                 while(leer1.Read())
@@ -63,15 +63,27 @@ namespace Chat_Interfaces
             }
             comando1.Dispose();
             leer1.Close();
-            comando =new MySqlCommand("INSERT INTO grupo (clave_grupo,Nombre_grupo) \r\nvalues(@clav,@nom) ;", conexion);
+            comando =new MySqlCommand("INSERT INTO grupos (clave_grupo,Nombre_grupo) \r\nvalues(@clav,@nom) ;", conexion);
             comando.Parameters.AddWithValue("@clav", rand);
             comando.Parameters.AddWithValue("@nom", nombre);
             comando.ExecuteNonQuery();
             this.Hide();
             comando.Dispose();
+            //Obtener id del grupo 
+            comando = new MySqlCommand("SELECT id from grupos where clave_grupo=@clav", conexion);
+            comando.Parameters.AddWithValue("@clav", rand);
+            leer = comando.ExecuteReader();
+            int val1 = -1;
+            if(leer.Read())
+            {
+                val1= (int)leer["id"];
+            }
+            comando.Dispose();
+            leer.Close();
+            //Insertamos en miembrros grupos
             comando=new MySqlCommand("INSERT into miembros_grupos(id_usuarios,id_grupo) \r\nvalues(@idu,@idg) ;", conexion);
             comando.Parameters.AddWithValue("@idu", id);
-            comando.Parameters.AddWithValue("@idg", rand);
+            comando.Parameters.AddWithValue("@idg", val1);
             comando.ExecuteNonQuery();
             comando.Dispose();
             Chat chat = new Chat();
