@@ -14,13 +14,14 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
         //Variables para manejar base de datos
         MySqlConnection conexion;
         MySqlCommand comando;
         MySqlDataReader leer;
-        private static string id;
+        private static string id,ids;
+        int tam = 0,tamaux;
         public Chat()
         {
             InitializeComponent();
@@ -173,18 +174,19 @@ namespace Chat_Interfaces
             comando = new MySqlCommand("SELECT contenido,fecha from mensajes WHERE Id_grupo=@id",conexion);
             comando.Parameters.AddWithValue("@id", id2);
             leer = comando.ExecuteReader();
+            tam = 0;
             while (leer.Read())
             {
                 //Pone los mensjes en el panel en un cuadro de color
                 Panel pan = new Panel();
-                pan.BackColor = Color.Beige;
                 pan.Width = panel1.Width - 25;
-                pan.Height = 60;
+                pan.Height = 30;
+                pan.Top = tam;
                 //Crea un lugar para guardar el mensaje
                 Label txt = new Label();
                 txt.Width = pan.Width - 10;
                 txt.Height = pan.Height - 10;
-
+                txt.Font = new Font("Arial", 12);
                 //por si el usuario usó texto plano pa representar un emoji
                 txt.Text = ConvertirTextoPlanoAEmojis(leer["contenido"].ToString());
 
@@ -196,9 +198,46 @@ namespace Chat_Interfaces
                 lab.Text = leer[leer.GetOrdinal("fecha")].ToString();
                 lab.Top = pan.Bottom;
                 lab.Left = pan.Left;
+                lab.Text = "Fecha:" + lab.Text;
                 panel1.Controls.Add(lab);
+                tam += pan.Height + lab.Height;
             }
-
+            tamaux = tam;
+            leer.Close();
+            comando.Dispose();
+            //Si  es mi mensaje es beige si no  es azul
+            MySqlCommand comando2 = new MySqlCommand("SELECT id_usuarios FROM miembros_grupos where id_grupo=@idg", conexion);
+            comando2.Parameters.AddWithValue("@idg", id2);
+            //Generamos una lista de usuarios que pertenece al grupo
+            List<int> usuarios = new List<int>();
+            leer = comando2.ExecuteReader();
+            while (leer.Read())
+            {
+                usuarios.Add((int)leer["id_usuarios"]);
+            }
+            leer.Close();
+            int j = 0;
+            //Cambiamos a checar el control (queda pendiente checar una manera
+            foreach(Control c in panel1.Controls)
+            {
+                if(c is Panel)
+                {
+                    //checamos color
+                    int ids = Convert.ToInt32(id);
+                    if (j<usuarios.Count&& ids == usuarios[j])
+                    {
+                        c.BackColor = Color.Beige;
+                    }
+                    else
+                    {
+                        c.BackColor = Color.LightBlue;
+                    }
+                    j++;
+                }
+               
+                    
+            }
+            comando2.Dispose();
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -303,9 +342,11 @@ namespace Chat_Interfaces
             Panel pan = new Panel();
             pan.BackColor = Color.Beige;
             pan.Width = panel1.Width - 25;
-            pan.Height = 60;
+            pan.Height = 30;
+            pan.Top = tamaux;
             //Crea un lugar para guardar el mensaje
             Label txt = new Label();
+            txt.Font = new Font("Arial", 12); 
             txt.Width = pan.Width - 10;
             txt.Height = pan.Height - 10;
             txt.Text = textBox2.Text;
@@ -317,6 +358,8 @@ namespace Chat_Interfaces
             lab.Text = DateTime.Now.ToString();
             lab.Top = pan.Bottom;
             lab.Left = pan.Left;
+            lab.Text = "Fecha:" + lab.Text;
+            tamaux += pan.Height + lab.Height;
             panel1.Controls.Add(lab);
             textBox2.Clear();
         }
@@ -339,6 +382,13 @@ namespace Chat_Interfaces
             return texto;
         }
 
+        private void Chat_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            comando.Dispose();
+            leer.Close();
+            conexion.Close();
+            Application.Exit();
+        }
 
         public static class Sesionid1
         {
