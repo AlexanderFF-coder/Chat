@@ -14,8 +14,9 @@ namespace Chat_Interfaces
 {
     public partial class AgregarMiembros : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
         private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+
 
         // Variables para almacenar los IDs del grupo y del creador
         private int _idGrupo;
@@ -59,7 +60,7 @@ namespace Chat_Interfaces
                 try
                 {
                     // Query: Selecciona todos los usuarios cuyo ID NO sea el ID del creador
-                    string query = "SELECT id, nombre, email FROM usuarios WHERE id!=@idCreador AND id NOT IN (SELECT id_usuarios FROM miembros_grupos WHERE id_grupo=@idGrupo)";
+                    string query = "SELECT id, nombre, email FROM usuarios WHERE id!=@idCreador AND id NOT IN (SELECT id_usuario FROM miembros_grupos WHERE id_grupo=@idGrupo)";
                     conexion.Open();
                     using (MySqlCommand comando = new MySqlCommand(query, conexion))
                     {
@@ -169,7 +170,7 @@ namespace Chat_Interfaces
                 try
                 {
                     conexion.Open();
-                    string query = "INSERT INTO miembros_grupos (id_usuarios, id_grupo) VALUES (@idu, @idg)";
+                    string query = "INSERT INTO miembros_grupos (id_usuario, id_grupo) VALUES (@idu, @idg)";
 
                     using (MySqlCommand comando = new MySqlCommand(query, conexion))
                     {

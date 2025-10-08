@@ -169,7 +169,7 @@ namespace Chat_Interfaces
                     }
 
                     //Ahora checa el id de miembro grupo al actual
-                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuarios=@idus", conexion))
+                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuario=@idus", conexion))
                     {
                         comando1.Parameters.AddWithValue("@id", idob);
                         comando1.Parameters.AddWithValue("@idus", _idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
@@ -223,7 +223,9 @@ namespace Chat_Interfaces
                 }
 
                 //Guarda los elementos en un panel con el contenido del mensje,hora y persona
-                using (MySqlCommand cmdMensajes = new MySqlCommand("SELECT contenido,fecha from mensajes WHERE Id_grupo=@id", conexion))
+                string sql = "SELECT contenido, fecha, Id_usuario FROM mensajes WHERE Id_grupo=@id ORDER BY fecha ASC";
+
+                using (MySqlCommand cmdMensajes = new MySqlCommand(sql, conexion))
                 {
                     cmdMensajes.Parameters.AddWithValue("@id", id2);
                     using (MySqlDataReader readerMensajes = cmdMensajes.ExecuteReader())
@@ -231,11 +233,25 @@ namespace Chat_Interfaces
                         tam = 0;
                         while (readerMensajes.Read())
                         {
+                            // Obtener ID del emisor
+                            int idMensajeUsuario = readerMensajes.GetInt32("Id_usuario");
+
                             //Pone los mensjes en el panel en un cuadro de color
                             Panel pan = new Panel();
                             pan.Width = panel1.Width - 25;
                             pan.Height = 30;
                             pan.Top = tam;
+
+                            // Asignar color segun el emisor
+                            if (idMensajeUsuario.ToString() == _idUsuario)
+                                {
+                                pan.BackColor = Color.LightBlue; // Mi mensaje
+                            }
+                            else
+                            {
+                                pan.BackColor = Color.Beige; // Mensaje de otro usuario
+                            }
+
                             //Crea un lugar para guardar el mensaje
                             Label txt = new Label();
                             txt.Width = pan.Width - 10;
@@ -260,7 +276,7 @@ namespace Chat_Interfaces
                 }
 
                 tamaux = tam;
-
+                /* La lógica de colores ya está manejada arriba, no es necesario repetirla
                 //Si  es mi mensaje es beige si no  es azul
                 using (MySqlCommand comando2 = new MySqlCommand("SELECT id_usuarios FROM miembros_grupos where id_grupo=@idg", conexion))
                 {
@@ -285,7 +301,7 @@ namespace Chat_Interfaces
                         if (c is Panel)
                         {
                             //checamos color
-                            if (usuarios.Contains(_idUsuario))
+                            if (usuarios.Contains(Convert.ToInt32(_idUsuario)) == true)
                             {
                                 c.BackColor = Color.LightBlue;
                             }
@@ -297,7 +313,9 @@ namespace Chat_Interfaces
                         }
                     }
                 }
+            */
             }
+
             catch (Exception ex)
             {
                 MessageBox.Show("Error al cargar mensajes: " + ex.Message, "Error DB", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -380,7 +398,7 @@ namespace Chat_Interfaces
                     }
 
                     //Ahora checa el id de miembro grupo al actual
-                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuarios=@idus", conexion))
+                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuario=@idus", conexion))
                     {
                         comando1.Parameters.AddWithValue("@id", idob);
                         comando1.Parameters.AddWithValue("@idus", _idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
@@ -447,13 +465,14 @@ namespace Chat_Interfaces
                     //Inserta el mensaje en la base de datos
                     string textoPlano = ConvertirEmojisATextoPlano(textBox2.Text);
 
-                    using (MySqlCommand cmdInsert = new MySqlCommand("INSERT INTO mensajes (Id_grupo,contenido) VALUES(@id,@cont)", conn))
+                    using (MySqlCommand cmdInsert = new MySqlCommand("INSERT INTO mensajes (Id_grupo, ID_usuario, contenido) VALUES(@idg, @idu, @cont)", conn))
                     {
-                        cmdInsert.Parameters.AddWithValue("@id", id);
+                        cmdInsert.Parameters.AddWithValue("@idg", id);
+                        cmdInsert.Parameters.AddWithValue("@idu", Convert.ToInt32(_idUsuario)); // Clave del usuario que manda el mensaje
                         cmdInsert.Parameters.AddWithValue("@cont", textoPlano);
                         cmdInsert.ExecuteNonQuery();
                     }
-
+                    textBox2.Clear();
                     // NOTA: Para una aplicación en tiempo real, deberías recargar los mensajes 
                     // después de la inserción, o al menos añadir el mensaje a la UI con el ID del usuario
                     // que lo envió (que es this._idUsuario)
@@ -464,6 +483,13 @@ namespace Chat_Interfaces
                 }
             }
 
+            if (listBox1.SelectedItem != null && !listBox1.SelectedItem.ToString().Contains("---"))
+            {
+                // Se llama al manejador de evento para recargar la vista del chat
+                listBox1_SelectedIndexChanged(listBox1, EventArgs.Empty);
+            }
+
+            /*
             //Pone los mensjes en el panel en un cuadro de color (Lógica de UI)
             Panel pan = new Panel();
             pan.BackColor = Color.Beige;
@@ -488,6 +514,7 @@ namespace Chat_Interfaces
             tamaux += pan.Height + lab.Height;
             panel1.Controls.Add(lab);
             textBox2.Clear();
+            */
         }
 
         private string ConvertirEmojisATextoPlano(string texto)
@@ -552,7 +579,5 @@ namespace Chat_Interfaces
             conexion.Close();
             Application.Exit();
         }
-
-        // ---> ELIMINAMOS LA CLASE ESTÁTICA Sesionid1
     }
 }

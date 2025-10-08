@@ -96,7 +96,7 @@ namespace Chat_Interfaces
             }
 
             // Insertamos al usuario CREADOR en miembrros grupos
-            comando = new MySqlCommand("INSERT into miembros_grupos(id_usuarios,id_grupo) \r\nvalues(@idu,@idg) ;", conexion);
+            comando = new MySqlCommand("INSERT into miembros_grupos(id_usuario,id_grupo) \r\nvalues(@idu,@idg) ;", conexion);
             comando.Parameters.AddWithValue("@idu", _idUsuario); // USAMOS EL ID DEL USUARIO CREADOR
             comando.Parameters.AddWithValue("@idg", idGrupoRecienCreado);
             comando.ExecuteNonQuery();
