@@ -41,13 +41,14 @@
             this.btnEmojiSad = new System.Windows.Forms.Button();
             this.btnEmojiHeart = new System.Windows.Forms.Button();
             this.btnEmojiSmile = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
             this.panelEmojis.SuspendLayout();
             this.SuspendLayout();
             // 
             // textBox1
             // 
             this.textBox1.Font = new System.Drawing.Font("Arial Narrow", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox1.Location = new System.Drawing.Point(12, 3);
+            this.textBox1.Location = new System.Drawing.Point(1, 4);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(171, 20);
             this.textBox1.TabIndex = 0;
@@ -83,7 +84,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(189, 0);
+            this.label1.Location = new System.Drawing.Point(178, 3);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(22, 24);
             this.label1.TabIndex = 4;
@@ -105,9 +106,9 @@
             // 
             this.panel1.AutoScroll = true;
             this.panel1.BackColor = System.Drawing.Color.White;
-            this.panel1.Location = new System.Drawing.Point(274, 3);
+            this.panel1.Location = new System.Drawing.Point(276, 0);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(527, 414);
+            this.panel1.Size = new System.Drawing.Size(525, 417);
             this.panel1.TabIndex = 6;
             // 
             // buttonEmoji
@@ -170,12 +171,24 @@
             this.btnEmojiSmile.Text = "😁";
             this.btnEmojiSmile.UseVisualStyleBackColor = false;
             // 
+            // button1
+            // 
+            this.button1.Font = new System.Drawing.Font("Arial Narrow", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.button1.Location = new System.Drawing.Point(206, 3);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(64, 23);
+            this.button1.TabIndex = 8;
+            this.button1.Text = "+ Personas";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // Chat
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.PeachPuff;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.button1);
             this.Controls.Add(this.panelEmojis);
             this.Controls.Add(this.buttonEmoji);
             this.Controls.Add(this.panel1);
@@ -209,5 +222,6 @@
         private System.Windows.Forms.Button btnEmojiSmile;
         private System.Windows.Forms.Button btnEmojiHeart;
         private System.Windows.Forms.Button btnEmojiSad;
+        private System.Windows.Forms.Button button1;
     }
 }

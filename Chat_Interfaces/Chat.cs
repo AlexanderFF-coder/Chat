@@ -14,8 +14,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -101,7 +101,7 @@ namespace Chat_Interfaces
         {
 
         }
-        //Pendiente(Mostrar grupos del usu solamente)
+
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
             //Buscar chat en listbox y base de datos y seleccionar el que mas se parezca y oculta lo demas (no funciona) 
@@ -193,7 +193,6 @@ namespace Chat_Interfaces
             }
         }
 
-        //Pendiente
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
             //Crea un chat a partir del grupo seleccionado
@@ -275,22 +274,24 @@ namespace Chat_Interfaces
                             usuarios.Add((int)readerMiembros["id_usuarios"]);
                         }
                     }
-
+                    if (usuarios.Contains(Convert.ToInt32(_idUsuario))==true)
+                    {
+                        usuarios.Remove(Convert.ToInt32(_idUsuario));
+                    }
                     int j = 0;
-                    //Cambiamos a checar el control (queda pendiente checar una manera
+                    //Cambiamos a checar el control 
                     foreach (Control c in panel1.Controls)
                     {
                         if (c is Panel)
                         {
                             //checamos color
-                            int ids = Convert.ToInt32(_idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
-                            if (j < usuarios.Count && ids == usuarios[j])
+                            if (usuarios.Contains(_idUsuario))
                             {
-                                c.BackColor = Color.Beige;
+                                c.BackColor = Color.LightBlue;
                             }
                             else
                             {
-                                c.BackColor = Color.LightBlue;
+                                c.BackColor = Color.Beige;
                             }
                             j++;
                         }
@@ -316,14 +317,82 @@ namespace Chat_Interfaces
             this.Hide();
         }
 
-        //Pendiente(Mostrar grupos del usu)
         private void Chat_VisibleChanged(object sender, EventArgs e)
         {
             // Esta lógica es compleja. Para simplificar, si quieres que los chats se recarguen al ser visible,
             // puedes llamar a la función de carga/filtrado. 
             // Para el propósito de este ejercicio, dejaremos solo la conexión.
+            string chec = textBox1.Text;
             if (this.Visible)
             {
+                conexion.Open();
+                //LLena el listbox con los grupos que alla en la base de datos (probado y funcional)
+                using (MySqlCommand cmdGrupos = new MySqlCommand("SELECT Nombre_grupo FROM grupos ", conexion))
+                using (MySqlDataReader readerGrupos = cmdGrupos.ExecuteReader())
+                {
+                    while (readerGrupos.Read())
+                    {
+                        listBox1.Items.Add(readerGrupos["Nombre_grupo"].ToString());
+                        //Mostrar linea en medio pero no esta activa o puede presionarse en el programa
+                        listBox1.Items.Add("--------------------------------------------------");
+                    }
+                }
+
+                for (int i = 0; i < listBox1.Items.Count; i++)
+                {
+                    //Si esta esconde los elementos que no son
+                    if (listBox1.Items[i].ToString().IndexOf(chec, StringComparison.CurrentCultureIgnoreCase) < 0)
+                    {
+                        listBox1.Items.RemoveAt(i);
+                        i--;
+                    }
+                }
+
+                int cont = 0;
+                //Eliminamos los grupos que no corresponden a la persona con el id de inicio
+                for (int i = listBox1.Items.Count - 1; i >= 0; i--)
+                {
+                    //Checamos el id del grupo
+                    string nom = listBox1.Items[i].ToString();
+
+                    if (nom.Contains("---")) continue; // Saltar separadores
+
+                    int idob = 0;
+
+                    using (MySqlCommand cmdGetId = new MySqlCommand("Select id from grupos where Nombre_grupo=@nom", conexion))
+                    {
+                        cmdGetId.Parameters.AddWithValue("@nom", nom);
+                        using (MySqlDataReader readerId = cmdGetId.ExecuteReader())
+                        {
+                            if (readerId.Read())
+                            {
+                                idob = (int)readerId["id"];
+                            }
+                        }
+                    }
+
+                    if (idob == 0)
+                    {
+                        listBox1.Items.RemoveAt(i);
+                        if (i > 0 && listBox1.Items[i - 1].ToString().Contains("---"))
+                            listBox1.Items.RemoveAt(i - 1);
+                        continue;
+                    }
+
+                    //Ahora checa el id de miembro grupo al actual
+                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuarios=@idus", conexion))
+                    {
+                        comando1.Parameters.AddWithValue("@id", idob);
+                        comando1.Parameters.AddWithValue("@idus", _idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
+                        cont = Convert.ToInt32(comando1.ExecuteScalar());
+                        if (cont == 0)
+                        {
+                            listBox1.Items.RemoveAt(i);
+                            if (i > 0 && listBox1.Items[i - 1].ToString().Contains("---"))
+                                listBox1.Items.RemoveAt(i - 1);
+                        }
+                    }
+                }
                 try
                 {
                     if (conexion.State != ConnectionState.Open) conexion.Open();
@@ -346,8 +415,10 @@ namespace Chat_Interfaces
             int id = 0;
             //Tiene que tener un grupo selecionado afuerza
             if (listBox1.SelectedItem == null || listBox1.SelectedItem.ToString().Contains("---"))
-    return;
-
+            {
+                MessageBox.Show("Mensaje a grupo no valido\n");
+                return;
+            }
             //Pasa los mensajes a la base de datos
             // Usaremos using para asegurar el manejo de la conexión
             using (MySqlConnection conn = new MySqlConnection(MYSQL_CONNECTION_STRING))
@@ -437,6 +508,38 @@ namespace Chat_Interfaces
             return texto;
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            if(listBox1.SelectedItem==null || listBox1.SelectedItem.ToString().Contains("---"))
+            {
+                MessageBox.Show("No es grupo valido");
+                return;
+            }
+            conexion.Open();
+            //Muestra la opcion de agregar miembros al grupo y guarda el id del grupo
+            using(comando=new MySqlCommand("SELECT id FROM grupos WHERE Nombre_grupo=@nom",conexion))
+            {
+                string nombre = listBox1.SelectedItem.ToString();   
+                comando.Parameters.AddWithValue("@nom",nombre);
+                using (leer=comando.ExecuteReader())
+                {
+                    if (leer.Read())
+                    {
+                        int idg=(int)leer["id"];
+                        AgregarMiembros ag=new AgregarMiembros(idg, Convert.ToInt32(_idUsuario));
+                        ag.Show();
+                        this.Hide();
+ 
+                    }
+                    else
+                    {
+                        MessageBox.Show("No se pudo obtener el id del grupo seleccionado");
+                    }
+                }
+            }
+            conexion.Close();
+        }
+
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)
         {
             // Intentar cerrar la conexión si está abierta
@@ -446,7 +549,7 @@ namespace Chat_Interfaces
                     conexion.Close();
             }
             catch { /* Ignorar errores de cierre */ }
-
+            conexion.Close();
             Application.Exit();
         }
 

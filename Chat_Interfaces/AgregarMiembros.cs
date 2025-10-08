@@ -8,12 +8,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ListView;
 
 namespace Chat_Interfaces
 {
     public partial class AgregarMiembros : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
 
         // Variables para almacenar los IDs del grupo y del creador
         private int _idGrupo;
@@ -56,10 +58,9 @@ namespace Chat_Interfaces
             {
                 try
                 {
-                    conexion.Open();
                     // Query: Selecciona todos los usuarios cuyo ID NO sea el ID del creador
-                    string query = "SELECT id, nombre, email FROM usuarios WHERE id != @idCreador AND id NOT IN (SELECT id_usuarios FROM miembros_grupos WHERE id_grupo = @idGrupo)";
-
+                    string query = "SELECT id, nombre, email FROM usuarios WHERE id!=@idCreador AND id NOT IN (SELECT id_usuarios FROM miembros_grupos WHERE id_grupo=@idGrupo)";
+                    conexion.Open();
                     using (MySqlCommand comando = new MySqlCommand(query, conexion))
                     {
                         comando.Parameters.AddWithValue("@idCreador", _idCreador);
@@ -70,11 +71,12 @@ namespace Chat_Interfaces
                             while (leer.Read())
                             {
                                 // Crea un objeto UsuarioItem para cada usuario encontrado
-                                checkedListBoxUsuarios.Items.Add(new UsuarioItem
+                                UsuarioItem usuario = new UsuarioItem
                                 {
                                     Id = leer.GetInt32("id"),
-                                    NombreCompleto = leer.GetString("nombre") + " (" + leer.GetString("email") + ")"
-                                });
+                                    NombreCompleto = $"{leer.GetString("nombre")} ({leer.GetString("email")})"
+                                };
+                                checkedListBoxUsuarios.Items.Add(usuario);
                             }
                         }
                     }
@@ -88,6 +90,67 @@ namespace Chat_Interfaces
 
         // Este método maneja el botón "Finalizar" o "Agregar"
         private void btnFinalizar_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        // Método para volver a la forma principal
+        private void VolverAFormularioChat()
+        {
+            string email = null;
+            string nombre = null;
+            // Paso 1: Obtener el email y el nombre del usuario creador (que está activo)
+            using (MySqlConnection conexion = new MySqlConnection(MYSQL_CONNECTION_STRING))
+            {
+                try
+                {
+                    conexion.Open();
+                    string query = "SELECT email, nombre FROM usuarios WHERE id = @idUsuario";
+                    using (MySqlCommand comando = new MySqlCommand(query, conexion))
+                    {
+                        comando.Parameters.AddWithValue("@idUsuario", _idCreador);
+                        using (MySqlDataReader leer = comando.ExecuteReader())
+                        {
+                            if (leer.Read())
+                            {
+                                email = leer.GetString("email");
+                                nombre = leer.GetString("nombre");
+                            }
+                        }
+                    }
+                    conexion.Close();
+                }
+                catch (Exception ex)
+                {
+                    // Mostramos el error, pero permitimos que el flujo continúe
+                    MessageBox.Show("Error al obtener datos del usuario: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            // Paso 2: Crear el nuevo formulario Chat con los 3 parámetros requeridos
+            if (!string.IsNullOrEmpty(email))
+            {
+                // La navegación será exitosa
+                Chat chatW = new Chat(email, _idCreador.ToString(), nombre);
+                chatW.Show();
+                this.Hide();
+            }
+            else
+            {
+                // La navegación falló (probablemente por el error capturado arriba), cerramos este formulario
+                MessageBox.Show("No se pudo recuperar la información del usuario para volver al Chat.", "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                this.Close();
+            }
+
+        }
+
+        private void AgregarMiembros_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            Environment.Exit(0);
+        }
+
+        private void button1_Click(object sender, EventArgs e)
         {
             List<int> idsSeleccionados = new List<int>();
 
@@ -141,53 +204,9 @@ namespace Chat_Interfaces
             VolverAFormularioChat();
         }
 
-        // Método para volver a la forma principal
-        private void VolverAFormularioChat()
+        private void button2_Click(object sender, EventArgs e)
         {
-            string email = string.Empty;
-            string nombre = string.Empty;
-
-            // Paso 1: Obtener el email y el nombre del usuario creador (que está activo)
-            using (MySqlConnection conexion = new MySqlConnection(MYSQL_CONNECTION_STRING))
-            {
-                try
-                {
-                    conexion.Open();
-                    string query = "SELECT email, nombre FROM usuarios WHERE id = @idUsuario";
-                    using (MySqlCommand comando = new MySqlCommand(query, conexion))
-                    {
-                        comando.Parameters.AddWithValue("@idUsuario", _idCreador);
-                        using (MySqlDataReader leer = comando.ExecuteReader())
-                        {
-                            if (leer.Read())
-                            {
-                                email = leer.GetString("email");
-                                nombre = leer.GetString("nombre");
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Mostramos el error, pero permitimos que el flujo continúe
-                    MessageBox.Show("Error al obtener datos del usuario: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-
-            // Paso 2: Crear el nuevo formulario Chat con los 3 parámetros requeridos
-            if (!string.IsNullOrEmpty(email))
-            {
-                // La navegación será exitosa
-                Chat chatW = new Chat(email, _idCreador.ToString(), nombre);
-                chatW.Show();
-                this.Close();
-            }
-            else
-            {
-                // La navegación falló (probablemente por el error capturado arriba), cerramos este formulario
-                MessageBox.Show("No se pudo recuperar la información del usuario para volver al Chat.", "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                this.Close();
-            }
+            VolverAFormularioChat();
         }
     }
 }
