@@ -15,8 +15,8 @@ namespace Chat_Interfaces
 {
     public partial class InicioSesion : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         private MySqlConnection conexion;
         private MySqlCommand comando;
@@ -72,6 +72,10 @@ namespace Chat_Interfaces
             string email = textBoxEmail.Text.Trim();
             string password = textBoxPassword.Text;
             string hashedPassword = string.Empty;
+            // ---> DECLARAMOS LAS NUEVAS VARIABLES DE SESIÓN
+            string idUsuario = string.Empty;
+            string nombreUsuario = string.Empty;
+            // <---
 
             // Validar que los campos no esten vacios
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
@@ -85,7 +89,9 @@ namespace Chat_Interfaces
             {
                 conexion.Open();
 
-                string query = "SELECT password FROM usuarios WHERE email = @email";
+                // ---> CONSULTA OPTIMIZADA: Traemos id, password y nombre en una sola query
+                string query = "SELECT id, password, nombre FROM usuarios WHERE email = @email";
+                // <---
 
                 comando = new MySqlCommand(query, conexion);
                 comando.Parameters.AddWithValue("@email", email);
@@ -94,11 +100,15 @@ namespace Chat_Interfaces
 
                 if (leer.Read())
                 {
-                    //Si encuentra el usuario, obtiene la contraseña hasheada
+                    //Si encuentra el usuario, obtiene los datos necesarios
                     hashedPassword = leer["password"].ToString();
+                    // ---> CAPTURAMOS ID Y NOMBRE
+                    idUsuario = leer["id"].ToString();
+                    nombreUsuario = leer["nombre"].ToString();
+                    // <---
                 }
 
-                leer.Close(); //Cerrat lector
+                leer.Close(); //Cerrar lector
             }
             catch (Exception ex)
             {
@@ -124,17 +134,13 @@ namespace Chat_Interfaces
             if (isPasswordValid)
             {
                 MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                //Gurardamos el id
-                comando = new MySqlCommand("Select id from usuarios where email=@mail", conexion);
-                comando.Parameters.AddWithValue("@mail", email);
-                conexion.Open();
-                leer = comando.ExecuteReader();
-                while (leer.Read())
-                {
-                    InicioSesion.Sesionid.IdUsuario= leer["id"].ToString();
-                }
-                // Si el login es exitoso, abrir la ventana de chat
-                Chat chatW = new Chat();
+
+                // ---> ELIMINAMOS LA SEGUNDA CONSULTA INNECESARIA AQUÍ <---
+
+                // ---> CORREGIMOS LA LLAMADA AL CONSTRUCTOR DE CHAT
+                Chat chatW = new Chat(email, idUsuario, nombreUsuario);
+                // <---
+
                 chatW.Show();
                 this.Hide();
             }
@@ -145,12 +151,6 @@ namespace Chat_Interfaces
             }
 
         }
-        public static class Sesionid
-        {
-            public static string IdUsuario;
-        }
-
-
     }
 }
 
@@ -176,5 +176,4 @@ public static class PasswordHelper
         string enteredHash = HashPassword(enteredPassword);
         return string.Equals(enteredHash, storedHash, StringComparison.OrdinalIgnoreCase);
     }
-
 }
