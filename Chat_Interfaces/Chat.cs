@@ -22,6 +22,12 @@ namespace Chat_Interfaces
         private string _idUsuario;
         private string _nombreUsuario;
 
+        //variables para la mencion (@)
+        private Panel panelMenciones;
+        private ListBox listBoxUsuarios;
+        private List<string> listaUsuarios = new List<string>();
+
+
         //Variables para manejar base de datos
         MySqlConnection conexion;
         MySqlCommand comando;
@@ -70,7 +76,115 @@ namespace Chat_Interfaces
 
             // Inicializamos la conexión aquí para usarla en el resto de la clase
             conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
+
+            // Crear panel de menciones
+            panelMenciones = new Panel
+            {
+                Visible = false,
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Width = 200,
+                Height = 100
+            };
+            this.Controls.Add(panelMenciones);
+            panelMenciones.BringToFront();
+
+            // Crear listbox dentro del panel
+            listBoxUsuarios = new ListBox
+            {
+                Dock = DockStyle.Fill
+            };
+            panelMenciones.Controls.Add(listBoxUsuarios);
+
+            // Evento click en lista
+            listBoxUsuarios.Click += ListBoxUsuarios_Click;
+
+            textBox2.KeyUp += TextBox2_KeyUp;
+
+            // Cargar lista de usuarios desde la BD
+            CargarUsuarios();
         }
+
+        // Cargar usuarios desde la base de datos para las menciones
+        private void CargarUsuarios()
+        {
+            listaUsuarios.Clear();
+            if (conexion.State != ConnectionState.Open) conexion.Open();
+            using (MySqlCommand cmd = new MySqlCommand("SELECT nombre FROM usuarios", conexion))
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    listaUsuarios.Add(reader["nombre"].ToString());
+                }
+            }
+            if (conexion.State == ConnectionState.Open) conexion.Close();
+        }
+
+        // Evento click en la lista de usuarios para menciones
+        private void TextBox2_KeyUp(object sender, KeyEventArgs e)
+        {
+            int atIndex = textBox2.Text.LastIndexOf('@');
+            if (atIndex >= 0)
+            {
+                string palabra = textBox2.Text.Substring(atIndex + 1);
+
+                var coincidencias = listaUsuarios
+                    .Where(u => u.StartsWith(palabra, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (coincidencias.Count > 0)
+                {
+                    listBoxUsuarios.Items.Clear();
+                    listBoxUsuarios.Items.AddRange(coincidencias.ToArray());
+
+                    panelMenciones.Visible = true;
+                    panelMenciones.Left = textBox2.Left + 5;
+                    panelMenciones.Top = textBox2.Top - panelMenciones.Height - 5;
+                }
+                else
+                {
+                    panelMenciones.Visible = false;
+                }
+            }
+            else
+            {
+                panelMenciones.Visible = false;
+            }
+        }
+
+        //seleccionar usuario
+        private void ListBoxUsuarios_Click(object sender, EventArgs e)
+        {
+            if (listBoxUsuarios.SelectedItem == null) return;
+
+            string usuarioSeleccionado = listBoxUsuarios.SelectedItem.ToString();
+
+            int atIndex = textBox2.Text.LastIndexOf("@");
+            if (atIndex >= 0)
+            {
+                string seleccion = "@" + usuarioSeleccionado;
+                // Reemplazar desde el @ hasta donde se escriba
+                textBox2.Text = textBox2.Text.Substring(0, atIndex) + seleccion + " ";
+
+                // Colorear todo el texto de negro primero
+                textBox2.SelectAll();
+                textBox2.SelectionColor = Color.Black;
+
+                // Colorear solo la mención de azul
+                textBox2.Select(atIndex, seleccion.Length);
+                textBox2.SelectionColor = Color.Blue;
+
+                // Restaurar cursor al final y color negro
+                textBox2.Select(textBox2.Text.Length, 0);
+                textBox2.SelectionColor = Color.Black;
+            }
+
+            panelMenciones.Visible = false;
+        }
+
+
+
 
         private void btnEmoji_Click(object sender, EventArgs e)
         {
