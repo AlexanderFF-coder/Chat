@@ -14,8 +14,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -425,29 +425,32 @@ namespace Chat_Interfaces
                             txt.Text = contenido;
 
                             // Buscar menciones y colorearlas
-                            int indice = 0;
-                            while ((indice = contenido.IndexOf("@", indice)) != -1)
+                            int indice=0;
+                            while(indice<txt.Text.Length)
                             {
-                                bool encontrado = false;
-
-                                foreach (string usuario in listaUsuarios.OrderByDescending(u => u.Length))
+                                //Checa ini palabra
+                                int indiceaux =txt.Text.IndexOf('@',indice);
+                                //Checamos si es que esta el arroba
+                                if (indiceaux==-1)
                                 {
-                                    if (contenido.Length >= indice + usuario.Length + 1 &&
-                                        string.Compare(contenido.Substring(indice + 1, usuario.Length), usuario, true) == 0)
-                                    {
-                                        // Colorear toda la mención (incluyendo espacios)
-                                        txt.Select(indice, usuario.Length + 1); // +1 para incluir "@"
-                                        txt.SelectionColor = Color.Blue;
-                                        indice += usuario.Length + 1;
-                                        encontrado = true;
-                                        break;
-                                    }
+                                    break;
                                 }
-
-                                if (!encontrado)
+                                //Checa fin palabra
+                                int esp=txt.Text.IndexOf(' ',indiceaux);
+                                if (esp==-1)
                                 {
-                                    indice++; // Avanzar si no encontró coincidencia
+                                    esp=txt.Text.Length;
                                 }
+                                //Obtiene usuario
+                                string us=txt.Text.Substring(indiceaux+1,esp-indiceaux-1);
+                                if (listaUsuarios.Contains(us))
+                                {
+                                    // Colorear la mención de azul
+                                    txt.Select(indiceaux,us.Length+1);
+                                    txt.SelectionColor=Color.Blue;
+                                }
+                                //Si es el fin termina
+                                indice=esp;
                             }
 
 
