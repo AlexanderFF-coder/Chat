@@ -14,8 +14,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -128,14 +128,12 @@ namespace Chat_Interfaces
                 }
 
                 for (int i = 0; i < listBox1.Items.Count; i++)
-                {
                     //Si esta esconde los elementos que no son
                     if (listBox1.Items[i].ToString().IndexOf(chec, StringComparison.CurrentCultureIgnoreCase) < 0)
                     {
                         listBox1.Items.RemoveAt(i);
                         i--;
                     }
-                }
 
                 int cont = 0;
                 //Eliminamos los grupos que no corresponden a la persona con el id de inicio
@@ -223,7 +221,12 @@ namespace Chat_Interfaces
                 }
 
                 //Guarda los elementos en un panel con el contenido del mensje,hora y persona
-                string sql = "SELECT contenido, fecha, Id_usuario FROM mensajes WHERE Id_grupo=@id ORDER BY fecha ASC";
+                //string sql = "SELECT contenido, fecha, Id_usuario FROM mensajes WHERE Id_grupo=@id ORDER BY fecha ASC";
+                string sql = @"SELECT m.contenido, m.fecha, m.Id_usuario, u.nombre AS nombre_usuario
+                            FROM mensajes m
+                            JOIN usuarios u ON m.Id_usuario = u.id
+                            WHERE m.Id_grupo=@id
+                            ORDER BY m.fecha ASC";
 
                 using (MySqlCommand cmdMensajes = new MySqlCommand(sql, conexion))
                 {
@@ -234,7 +237,13 @@ namespace Chat_Interfaces
                         while (readerMensajes.Read())
                         {
                             // Obtener ID del emisor
-                            int idMensajeUsuario = readerMensajes.GetInt32("Id_usuario");
+                            //int idMensajeUsuario = readerMensajes.GetInt32("Id_usuario");
+                            string nombreUsuarioMensaje;
+
+                            if (readerMensajes["Id_usuario"].ToString() == _idUsuario)
+                                nombreUsuarioMensaje = "Tú";
+                            else
+                                nombreUsuarioMensaje = readerMensajes["nombre_usuario"].ToString();
 
                             //Pone los mensjes en el panel en un cuadro de color
                             Panel pan = new Panel();
@@ -243,34 +252,54 @@ namespace Chat_Interfaces
                             pan.Top = tam;
 
                             // Asignar color segun el emisor
-                            if (idMensajeUsuario.ToString() == _idUsuario)
-                                {
+                            if (readerMensajes["Id_usuario"].ToString() == _idUsuario)
                                 pan.BackColor = Color.LightBlue; // Mi mensaje
-                            }
                             else
-                            {
                                 pan.BackColor = Color.Beige; // Mensaje de otro usuario
-                            }
+
+                            //label del nombre del usuario
+                            Label lblNombre = new Label();
+                            lblNombre.AutoSize = true;
+                            lblNombre.Font = new Font("Arial", 8, FontStyle.Bold); // Fuente pequeña y en negrita
+                            lblNombre.Text = nombreUsuarioMensaje + ":";
+                            lblNombre.Top = 5;
+                            lblNombre.Left = 5;
+                            pan.Controls.Add(lblNombre);
 
                             //Crea un lugar para guardar el mensaje
                             Label txt = new Label();
-                            txt.Width = pan.Width - 10;
-                            txt.Height = pan.Height - 10;
+                            txt.AutoSize = false;
                             txt.Font = new Font("Arial", 12);
-                            //por si el usuario usó texto plano pa representar un emoji
                             txt.Text = ConvertirTextoPlanoAEmojis(readerMensajes["contenido"].ToString());
+                            txt.Top = lblNombre.Bottom + 2;
+                            txt.Left = 5;
+                            txt.Width = pan.Width - 10;
+                            txt.MaximumSize = new Size(pan.Width - 10, 0); // Permite wrap vertical
+                            txt.AutoSize = true; // Ajusta altura automáticamente
+                            txt.MaximumSize = new Size(pan.Width - 10, 0);
 
                             pan.Controls.Add(txt);
+
+                            // Ajustar altura del panel según contenido
+                            pan.Height = lblNombre.Height + txt.Height + 10;
+
+
                             //Agrega  a principal
                             panel1.Controls.Add(pan);
-                            //Pasamos la fecha
+
+
+                            //label de fecha
                             Label lab = new Label();
-                            lab.Text = readerMensajes.GetDateTime("fecha").ToString(); // Usar GetDateTime para precisión
-                            lab.Top = pan.Bottom;
-                            lab.Left = pan.Left;
-                            lab.Text = "Fecha:" + lab.Text;
+                            lab.AutoSize = true; // Hace que el label se ajuste al texto
+                            lab.Font = new Font("Arial", 6); // Tamaño más pequeño para la fecha
+                            lab.ForeColor = Color.Gray; // Opcional: color distinto para la fecha
+                            lab.Text = "Fecha: " + readerMensajes.GetDateTime("fecha").ToString("g"); // Formato corto
+                            lab.Top = pan.Bottom; // Un pequeño margen debajo del panel
+                            lab.Left = pan.Left; // Un margen lateral
                             panel1.Controls.Add(lab);
-                            tam += pan.Height + lab.Height;
+
+
+                            tam += pan.Height + lab.Height  + 5;
                         }
                     }
                 }
