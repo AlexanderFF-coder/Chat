@@ -428,12 +428,28 @@ namespace Chat_Interfaces
                             int indice = 0;
                             while ((indice = contenido.IndexOf("@", indice)) != -1)
                             {
-                                int fin = contenido.IndexOf(' ', indice);
-                                if (fin == -1) fin = contenido.Length;
-                                txt.Select(indice, fin - indice);
-                                txt.SelectionColor = Color.Blue;
-                                indice = fin;
+                                bool encontrado = false;
+
+                                foreach (string usuario in listaUsuarios.OrderByDescending(u => u.Length))
+                                {
+                                    if (contenido.Length >= indice + usuario.Length + 1 &&
+                                        string.Compare(contenido.Substring(indice + 1, usuario.Length), usuario, true) == 0)
+                                    {
+                                        // Colorear toda la mención (incluyendo espacios)
+                                        txt.Select(indice, usuario.Length + 1); // +1 para incluir "@"
+                                        txt.SelectionColor = Color.Blue;
+                                        indice += usuario.Length + 1;
+                                        encontrado = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!encontrado)
+                                {
+                                    indice++; // Avanzar si no encontró coincidencia
+                                }
                             }
+
 
                             // Restaurar color normal
                             txt.Select(txt.TextLength, 0);
@@ -462,6 +478,12 @@ namespace Chat_Interfaces
                             tam += pan.Height + lab.Height  + 5;
                         }
                     }
+                    // Desplaza el panel hacia el último mensaje
+                    if (panel1.Controls.Count > 0)
+                    {
+                        panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
+                    }
+
                 }
 
                 tamaux = tam;
@@ -514,27 +536,6 @@ namespace Chat_Interfaces
                 if (conexion.State == ConnectionState.Open) conexion.Close();
             }
         }
-
-        private int ObtenerIdGrupo(string nombreGrupo)
-        {
-            int idGrupo = -1;
-            if (conexion.State != ConnectionState.Open)
-                conexion.Open();
-
-            using (MySqlCommand cmd = new MySqlCommand("SELECT id FROM grupos WHERE Nombre_grupo=@nom", conexion))
-            {
-                cmd.Parameters.AddWithValue("@nom", nombreGrupo);
-                object result = cmd.ExecuteScalar();
-                if (result != null)
-                {
-                    idGrupo = Convert.ToInt32(result);
-                }
-            }
-
-            conexion.Close();
-            return idGrupo;
-        }
-
 
         private void label1_Click(object sender, EventArgs e)
         {
@@ -697,6 +698,12 @@ namespace Chat_Interfaces
             {
                 // Se llama al manejador de evento para recargar la vista del chat
                 listBox1_SelectedIndexChanged(listBox1, EventArgs.Empty);
+
+                //Mueve el scroll al último mensaje
+                if (panel1.Controls.Count > 0)
+                {
+                    panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
+                }
             }
 
             /*
