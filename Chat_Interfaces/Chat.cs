@@ -41,6 +41,8 @@ namespace Chat_Interfaces
         {
             InitializeComponent();
 
+            textBox2.Font = new Font("Segoe Ui Emoji", 9f);
+
             // 1. Almacenamos los datos de sesión en las variables de instancia
             _usuarioEmail = email;
             _idUsuario = idUsuario;
@@ -102,24 +104,46 @@ namespace Chat_Interfaces
             textBox2.KeyUp += TextBox2_KeyUp;
 
             // Cargar lista de usuarios desde la BD
-            CargarUsuarios();
+            //CargarUsuarios();
         }
 
-        // Cargar usuarios desde la base de datos para las menciones
-        private void CargarUsuarios()
+        // Cargar usuarios del grupo desde la base de datos para las menciones
+        private void CargarUsuariosDelGrupo(int idGrupo)
         {
             listaUsuarios.Clear();
-            if (conexion.State != ConnectionState.Open) conexion.Open();
-            using (MySqlCommand cmd = new MySqlCommand("SELECT nombre FROM usuarios", conexion))
-            using (MySqlDataReader reader = cmd.ExecuteReader())
+
+            bool cerrarConexion = false;
+
+            if (conexion.State != ConnectionState.Open)
             {
-                while (reader.Read())
+                conexion.Open();
+                cerrarConexion = true;
+            }
+
+            string sql = @"
+                        SELECT u.nombre 
+                        FROM usuarios u
+                        JOIN miembros_grupos mg ON u.id = mg.id_usuario
+                        WHERE mg.id_grupo = @idGrupo";
+
+            using (MySqlCommand cmd = new MySqlCommand(sql, conexion))
+            {
+                cmd.Parameters.AddWithValue("@idGrupo", idGrupo);
+
+                using (MySqlDataReader reader = cmd.ExecuteReader())
                 {
-                    listaUsuarios.Add(reader["nombre"].ToString());
+                    while (reader.Read())
+                    {
+                        listaUsuarios.Add(reader["nombre"].ToString());
+                    }
+                    reader.Close();
                 }
             }
-            if (conexion.State == ConnectionState.Open) conexion.Close();
+
+            if (cerrarConexion)
+                conexion.Close();
         }
+
 
         // Evento click en la lista de usuarios para menciones
         private void TextBox2_KeyUp(object sender, KeyEventArgs e)
@@ -208,8 +232,6 @@ namespace Chat_Interfaces
                 panelEmojis.Visible = false;
             }
         }
-
-
 
         private void Chat_Load(object sender, EventArgs e)
         {
@@ -324,14 +346,20 @@ namespace Chat_Interfaces
                     {
                         if (readerId.Read())
                         {
-                            id2 = (int)readerId["id"];
+                            //id2 = (int)readerId["id"];
+                            id2 = Convert.ToInt32(readerId["id"]);
                         }
+                        readerId.Close();
                     }
                 }
 
-                if (id2 == -1)
+                /*if (id2 == -1)
                 {
                     return;
+                }*/
+                if (id2 != -1)
+                {
+                    CargarUsuariosDelGrupo(id2);
                 }
 
                 //Guarda los elementos en un panel con el contenido del mensje,hora y persona
@@ -381,26 +409,45 @@ namespace Chat_Interfaces
                             pan.Controls.Add(lblNombre);
 
                             //Crea un lugar para guardar el mensaje
-                            Label txt = new Label();
-                            txt.AutoSize = false;
-                            txt.Font = new Font("Arial", 12);
-                            txt.Text = ConvertirTextoPlanoAEmojis(readerMensajes["contenido"].ToString());
+                            RichTextBox txt = new RichTextBox();
+                            txt.BorderStyle = BorderStyle.None;
+                            txt.BackColor = pan.BackColor;
+                            txt.ReadOnly = true;
+                            txt.Font = new Font("Segoe UI Emoji", 12f);
+                            txt.Width = pan.Width - 10;
                             txt.Top = lblNombre.Bottom + 2;
                             txt.Left = 5;
-                            txt.Width = pan.Width - 10;
-                            txt.MaximumSize = new Size(pan.Width - 10, 0); // Permite wrap vertical
-                            txt.AutoSize = true; // Ajusta altura automáticamente
-                            txt.MaximumSize = new Size(pan.Width - 10, 0);
+                            txt.ScrollBars = RichTextBoxScrollBars.None;
+                            txt.Multiline = true;
+
+
+                            string contenido = ConvertirTextoPlanoAEmojis(readerMensajes["contenido"].ToString());
+                            txt.Text = contenido;
+
+                            // Buscar menciones y colorearlas
+                            int indice = 0;
+                            while ((indice = contenido.IndexOf("@", indice)) != -1)
+                            {
+                                int fin = contenido.IndexOf(' ', indice);
+                                if (fin == -1) fin = contenido.Length;
+                                txt.Select(indice, fin - indice);
+                                txt.SelectionColor = Color.Blue;
+                                indice = fin;
+                            }
+
+                            // Restaurar color normal
+                            txt.Select(txt.TextLength, 0);
+                            txt.SelectionColor = Color.Black;
 
                             pan.Controls.Add(txt);
 
                             // Ajustar altura del panel según contenido
+                            // Ajustar altura del panel según contenido
+                            txt.Height = txt.GetPreferredSize(new Size(txt.Width, 0)).Height;
                             pan.Height = lblNombre.Height + txt.Height + 10;
-
 
                             //Agrega  a principal
                             panel1.Controls.Add(pan);
-
 
                             //label de fecha
                             Label lab = new Label();
@@ -411,7 +458,6 @@ namespace Chat_Interfaces
                             lab.Top = pan.Bottom; // Un pequeño margen debajo del panel
                             lab.Left = pan.Left; // Un margen lateral
                             panel1.Controls.Add(lab);
-
 
                             tam += pan.Height + lab.Height  + 5;
                         }
@@ -468,6 +514,27 @@ namespace Chat_Interfaces
                 if (conexion.State == ConnectionState.Open) conexion.Close();
             }
         }
+
+        private int ObtenerIdGrupo(string nombreGrupo)
+        {
+            int idGrupo = -1;
+            if (conexion.State != ConnectionState.Open)
+                conexion.Open();
+
+            using (MySqlCommand cmd = new MySqlCommand("SELECT id FROM grupos WHERE Nombre_grupo=@nom", conexion))
+            {
+                cmd.Parameters.AddWithValue("@nom", nombreGrupo);
+                object result = cmd.ExecuteScalar();
+                if (result != null)
+                {
+                    idGrupo = Convert.ToInt32(result);
+                }
+            }
+
+            conexion.Close();
+            return idGrupo;
+        }
+
 
         private void label1_Click(object sender, EventArgs e)
         {
