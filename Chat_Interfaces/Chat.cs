@@ -5,17 +5,20 @@ using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Management;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
 namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -35,6 +38,10 @@ namespace Chat_Interfaces
 
         // Se eliminan los campos estáticos problemáticos (id, ids) y se usa _idUsuario
         int tam = 0, tamaux;
+
+        //diccionario de emojis
+        private Dictionary<string, Image> emojis = new Dictionary<string, Image>();
+
 
         // CONSTRUCTOR ACTUALIZADO para recibir los 3 parámetros
         public Chat(string email, string idUsuario, string nombreUsuario)
@@ -57,11 +64,25 @@ namespace Chat_Interfaces
             // id = InicioSesion.Sesionid.IdUsuario;
 
             buttonEmoji.Click += btnEmoji_Click;
+            buttonEmoji.Image = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\smile.png"));
+            buttonEmoji.Image = new Bitmap(buttonEmoji.Image, new Size(14, 14));
+            buttonEmoji.ImageAlign = ContentAlignment.MiddleCenter;
+
             this.Controls.Add(buttonEmoji);
+
 
             btnEmojiSmile.Click += Emoji_Click;
             btnEmojiHeart.Click += Emoji_Click;
             btnEmojiSad.Click += Emoji_Click;
+
+            btnEmojiSmile.Tag = ":smile:";
+            btnEmojiSmile.Image = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\smile.png"));
+
+            btnEmojiHeart.Tag = ":heart:";
+            btnEmojiHeart.Image = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\heart.png"));
+
+            btnEmojiSad.Tag = ":sad:";
+            btnEmojiSad.Image = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\sad.png"));
 
             this.Controls.Add(panelEmojis);
             panelEmojis.BringToFront();
@@ -103,9 +124,18 @@ namespace Chat_Interfaces
 
             textBox2.KeyUp += TextBox2_KeyUp;
 
-            // Cargar lista de usuarios desde la BD
-            //CargarUsuarios();
+            cargarEmojis();
         }
+
+
+        /*private void insertarEmojiEnRichTextBox(RichTextBox caja, Image img)
+        {
+            Clipboard.SetImage(img);
+            caja.Paste();
+        }*/
+
+
+
 
         // Cargar usuarios del grupo desde la base de datos para las menciones
         private void CargarUsuariosDelGrupo(int idGrupo)
@@ -216,9 +246,15 @@ namespace Chat_Interfaces
         private void Emoji_Click(object sender, EventArgs e)
         {
             Button emojiButton = sender as Button;
-            if (emojiButton != null)
+            if (emojiButton!=null && emojiButton.Tag!= null)
             {
-                textBox2.Text += emojiButton.Text; // Añade emoji al texto del mensaje
+                // inserta el texto plano en vez de la imagen
+                string codigoEmoji = emojiButton.Tag.ToString();
+
+                // inserta el código en la posición del cursor
+                int posicion = textBox2.SelectionStart;
+                textBox2.Text = textBox2.Text.Insert(posicion, codigoEmoji + " ");
+                textBox2.SelectionStart = posicion + codigoEmoji.Length + 1;
             }
         }
 
@@ -400,6 +436,7 @@ namespace Chat_Interfaces
                             lblNombre.Text = nombreUsuarioMensaje + ":";
                             lblNombre.Top = 5;
                             lblNombre.Left = 5;
+
                             pan.Controls.Add(lblNombre);
 
                             //Crea un lugar para guardar el mensaje
@@ -415,38 +452,34 @@ namespace Chat_Interfaces
                             txt.Multiline = true;
 
 
-                            string contenido = ConvertirTextoPlanoAEmojis(readerMensajes["contenido"].ToString());
-                            txt.Text = contenido;
+                            string contenido = readerMensajes["contenido"].ToString();
+                            MostrarTextoConEmojis(txt, contenido);
 
                             // Buscar menciones y colorearlas
-                            int indice=0;
-                            while(indice<txt.Text.Length)
+                            int indice = 0;
+                            while (indice < txt.Text.Length)
                             {
                                 //Checa ini palabra
-                                int indiceaux =txt.Text.IndexOf('@',indice);
+                                int indiceaux = txt.Text.IndexOf('@', indice);
+
                                 //Checamos si es que esta el arroba
-                                if (indiceaux==-1)
-                                {
-                                    break;
-                                }
+                                if (indiceaux == -1) break;
+
                                 //Checa fin palabra
-                                int esp=txt.Text.IndexOf(' ',indiceaux);
-                                if (esp==-1)
-                                {
-                                    esp=txt.Text.Length;
-                                }
+                                int esp = txt.Text.IndexOf(' ', indiceaux);
+                                if (esp == -1) esp = txt.Text.Length;
+
                                 //Obtiene usuario
-                                string us=txt.Text.Substring(indiceaux+1,esp-indiceaux-1);
+                                string us = txt.Text.Substring(indiceaux + 1, esp - indiceaux - 1);
                                 if (listaUsuarios.Contains(us))
                                 {
                                     // Colorear la mención de azul
-                                    txt.Select(indiceaux,us.Length+1);
-                                    txt.SelectionColor=Color.Blue;
+                                    txt.Select(indiceaux, us.Length + 1);
+                                    txt.SelectionColor = Color.Blue;
                                 }
                                 //Si es el fin termina
-                                indice=esp;
+                                indice = esp;
                             }
-
 
                             // Restaurar color normal
                             txt.Select(txt.TextLength, 0);
@@ -454,7 +487,6 @@ namespace Chat_Interfaces
 
                             pan.Controls.Add(txt);
 
-                            // Ajustar altura del panel según contenido
                             // Ajustar altura del panel según contenido
                             txt.Height = txt.GetPreferredSize(new Size(txt.Width, 0)).Height;
                             pan.Height = lblNombre.Height + txt.Height + 10;
@@ -470,9 +502,10 @@ namespace Chat_Interfaces
                             lab.Text = "Fecha: " + readerMensajes.GetDateTime("fecha").ToString("g"); // Formato corto
                             lab.Top = pan.Bottom; // Un pequeño margen debajo del panel
                             lab.Left = pan.Left; // Un margen lateral
+
                             panel1.Controls.Add(lab);
 
-                            tam += pan.Height + lab.Height  + 5;
+                            tam += pan.Height + lab.Height + 5;
                         }
                     }
                     // Desplaza el panel hacia el último mensaje
@@ -632,8 +665,8 @@ namespace Chat_Interfaces
                         return;
                     }
 
-                    //Inserta el mensaje en la base de datos
-                    string textoPlano = ConvertirEmojisATextoPlano(textBox2.Text);
+                    //Insertar el mensaje en la base de datos
+                    string textoPlano = textBox2.Text;
 
                     using (MySqlCommand cmdInsert = new MySqlCommand("INSERT INTO mensajes (Id_grupo, ID_usuario, contenido) VALUES(@idg, @idu, @cont)", conn))
                     {
@@ -684,6 +717,45 @@ namespace Chat_Interfaces
             return texto;
         }
 
+        //por si se ocupa
+        private void cargarEmojis()
+        {
+            emojis[":smile:"] = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\smile.png"));
+            emojis[":heart:"] = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\heart.png"));
+            emojis[":sad:"] = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\sad.png"));
+        }
+
+        private void InsertarImagenEnRichTextBox(RichTextBox richtb, Image img)
+        {
+            if (img == null) return;
+
+            int altoTexto = (int)richtb.Font.GetHeight();
+            int ancho = (int)((float)img.Width / img.Height * altoTexto); // mantener proporcion
+            Image imgEscalada = new Bitmap(img, new Size(ancho, altoTexto));
+
+            Clipboard.SetImage(imgEscalada);
+            richtb.ReadOnly = false;
+            richtb.Paste();
+            richtb.ReadOnly = true;
+        }
+
+        private void MostrarTextoConEmojis(RichTextBox richtb, string texto)
+        {
+            richtb.Clear();
+
+            var matches = Regex.Split(texto, @"(:smile:|:heart:|:sad:)|(\s+)"); // mantener espacios
+            foreach (string palabra in matches)
+            {
+                if (string.IsNullOrEmpty(palabra)) continue;
+
+                if (emojis.ContainsKey(palabra))
+                    InsertarImagenEnRichTextBox(richtb, emojis[palabra]);
+                else
+                    richtb.AppendText(palabra); //si no es emoji, texto normal
+            }
+        }
+
+
         private void button1_Click(object sender, EventArgs e)
         {
             if(listBox1.SelectedItem==null || listBox1.SelectedItem.ToString().Contains("---"))
@@ -695,7 +767,7 @@ namespace Chat_Interfaces
             //Muestra la opcion de agregar miembros al grupo y guarda el id del grupo
             using(comando=new MySqlCommand("SELECT id FROM grupos WHERE Nombre_grupo=@nom",conexion))
             {
-                string nombre = listBox1.SelectedItem.ToString();   
+                string nombre = listBox1.SelectedItem.ToString();
                 comando.Parameters.AddWithValue("@nom",nombre);
                 using (leer=comando.ExecuteReader())
                 {
@@ -705,7 +777,7 @@ namespace Chat_Interfaces
                         AgregarMiembros ag=new AgregarMiembros(idg, Convert.ToInt32(_idUsuario));
                         ag.Show();
                         this.Hide();
- 
+
                     }
                     else
                     {
@@ -718,7 +790,7 @@ namespace Chat_Interfaces
 
         private void textBox2_TextChanged(object sender, EventArgs e)
         {
-            
+
         }
 
         private void textBox2_KeyDown(object sender, KeyEventArgs e)
@@ -728,7 +800,7 @@ namespace Chat_Interfaces
 
         private void textBox2_KeyUp_1(object sender, KeyEventArgs e)
         {
-            
+
             if (e.KeyCode == Keys.Back)
             {
                 //Obtenemos el inicio del cursor donde esta
@@ -759,6 +831,11 @@ namespace Chat_Interfaces
                 textBox2.Select(val, 0);
                 textBox2.SelectionColor = Color.Black;
             }
+        }
+
+        private void buttonEmoji_Click(object sender, EventArgs e)
+        {
+
         }
 
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)
