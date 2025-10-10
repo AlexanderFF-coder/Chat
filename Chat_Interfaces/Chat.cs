@@ -156,7 +156,6 @@ namespace Chat_Interfaces
                 var coincidencias = listaUsuarios
                     .Where(u => u.StartsWith(palabra, StringComparison.OrdinalIgnoreCase))
                     .ToList();
-
                 if (coincidencias.Count > 0)
                 {
                     listBoxUsuarios.Items.Clear();
@@ -183,7 +182,6 @@ namespace Chat_Interfaces
             if (listBoxUsuarios.SelectedItem == null) return;
 
             string usuarioSeleccionado = listBoxUsuarios.SelectedItem.ToString();
-
             int atIndex = textBox2.Text.LastIndexOf("@");
             if (atIndex >= 0)
             {
@@ -353,10 +351,6 @@ namespace Chat_Interfaces
                     }
                 }
 
-                /*if (id2 == -1)
-                {
-                    return;
-                }*/
                 if (id2 != -1)
                 {
                     CargarUsuariosDelGrupo(id2);
@@ -490,44 +484,6 @@ namespace Chat_Interfaces
                 }
 
                 tamaux = tam;
-                /* La lógica de colores ya está manejada arriba, no es necesario repetirla
-                //Si  es mi mensaje es beige si no  es azul
-                using (MySqlCommand comando2 = new MySqlCommand("SELECT id_usuarios FROM miembros_grupos where id_grupo=@idg", conexion))
-                {
-                    comando2.Parameters.AddWithValue("@idg", id2);
-                    //Generamos una lista de usuarios que pertenece al grupo
-                    List<int> usuarios = new List<int>();
-                    using (MySqlDataReader readerMiembros = comando2.ExecuteReader())
-                    {
-                        while (readerMiembros.Read())
-                        {
-                            usuarios.Add((int)readerMiembros["id_usuarios"]);
-                        }
-                    }
-                    if (usuarios.Contains(Convert.ToInt32(_idUsuario))==true)
-                    {
-                        usuarios.Remove(Convert.ToInt32(_idUsuario));
-                    }
-                    int j = 0;
-                    //Cambiamos a checar el control 
-                    foreach (Control c in panel1.Controls)
-                    {
-                        if (c is Panel)
-                        {
-                            //checamos color
-                            if (usuarios.Contains(Convert.ToInt32(_idUsuario)) == true)
-                            {
-                                c.BackColor = Color.LightBlue;
-                            }
-                            else
-                            {
-                                c.BackColor = Color.Beige;
-                            }
-                            j++;
-                        }
-                    }
-                }
-            */
             }
 
             catch (Exception ex)
@@ -708,33 +664,6 @@ namespace Chat_Interfaces
                     panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
                 }
             }
-
-            /*
-            //Pone los mensjes en el panel en un cuadro de color (Lógica de UI)
-            Panel pan = new Panel();
-            pan.BackColor = Color.Beige;
-            pan.Width = panel1.Width - 25;
-            pan.Height = 30;
-            pan.Top = tamaux;
-            //Crea un lugar para guardar el mensaje
-            Label txt = new Label();
-            txt.Font = new Font("Arial", 12);
-            txt.Width = pan.Width - 10;
-            txt.Height = pan.Height - 10;
-            txt.Text = textBox2.Text;
-            pan.Controls.Add(txt);
-            //Agrega  a principal
-            panel1.Controls.Add(pan);
-            //Pasamos la fecha
-            Label lab = new Label();
-            lab.Text = DateTime.Now.ToString();
-            lab.Top = pan.Bottom;
-            lab.Left = pan.Left;
-            lab.Text = "Fecha:" + lab.Text;
-            tamaux += pan.Height + lab.Height;
-            panel1.Controls.Add(lab);
-            textBox2.Clear();
-            */
         }
 
         private string ConvertirEmojisATextoPlano(string texto)
@@ -785,6 +714,51 @@ namespace Chat_Interfaces
                 }
             }
             conexion.Close();
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_KeyDown(object sender, KeyEventArgs e)
+        {
+            textBox2.SelectionStart = textBox2.Text.Length;
+        }
+
+        private void textBox2_KeyUp_1(object sender, KeyEventArgs e)
+        {
+            
+            if (e.KeyCode == Keys.Back)
+            {
+                //Obtenemos el inicio del cursor donde esta
+                int val = textBox2.SelectionStart;
+                //Mientra no sea ini o fin
+                if (val == 0)
+                {
+                    return;
+                }
+                int inic = val;
+                char c = textBox2.Text[val - 1];
+                textBox2.Select(val, 1);
+                if (textBox2.SelectionColor == Color.Blue)
+                {
+                    while (val >= 0)
+                    {
+                        //Una vez que tenemos los elementos en azul los eliminamos todos y despues cambiamos a negro
+                        textBox2.Select(val, 1);
+                        if (textBox2.SelectionColor != Color.Blue)
+                        {
+                            break;
+                        }
+                        textBox2.Text = textBox2.Text.Remove(val - 1, 1);
+                        val--;
+                    }
+
+                }
+                textBox2.Select(val, 0);
+                textBox2.SelectionColor = Color.Black;
+            }
         }
 
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)
