@@ -42,7 +42,6 @@ namespace Chat_Interfaces
         //diccionario de emojis
         private Dictionary<string, Image> emojis = new Dictionary<string, Image>();
 
-
         // CONSTRUCTOR ACTUALIZADO para recibir los 3 parámetros
         public Chat(string email, string idUsuario, string nombreUsuario)
         {
@@ -69,7 +68,6 @@ namespace Chat_Interfaces
             buttonEmoji.ImageAlign = ContentAlignment.MiddleCenter;
 
             this.Controls.Add(buttonEmoji);
-
 
             btnEmojiSmile.Click += Emoji_Click;
             btnEmojiHeart.Click += Emoji_Click;
@@ -126,16 +124,6 @@ namespace Chat_Interfaces
 
             cargarEmojis();
         }
-
-
-        /*private void insertarEmojiEnRichTextBox(RichTextBox caja, Image img)
-        {
-            Clipboard.SetImage(img);
-            caja.Paste();
-        }*/
-
-
-
 
         // Cargar usuarios del grupo desde la base de datos para las menciones
         private void CargarUsuariosDelGrupo(int idGrupo)
@@ -474,11 +462,11 @@ namespace Chat_Interfaces
                                 if (listaUsuarios.Contains(us))
                                 {
                                     // Colorear la mención de azul
-                                    txt.Select(indiceaux, us.Length + 1);
-                                    txt.SelectionColor = Color.Blue;
+                                    txt.Select(indiceaux,us.Length+1);
+                                    txt.SelectionColor=Color.Blue;
                                 }
                                 //Si es el fin termina
-                                indice = esp;
+                                indice=esp;
                             }
 
                             // Restaurar color normal
@@ -505,7 +493,7 @@ namespace Chat_Interfaces
 
                             panel1.Controls.Add(lab);
 
-                            tam += pan.Height + lab.Height + 5;
+                            tam += pan.Height + lab.Height  + 5;
                         }
                     }
                     // Desplaza el panel hacia el último mensaje
@@ -725,36 +713,47 @@ namespace Chat_Interfaces
             emojis[":sad:"] = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\sad.png"));
         }
 
-        private void InsertarImagenEnRichTextBox(RichTextBox richtb, Image img)
+        private void InsertarImagenEnRichTextBox(RichTextBox richtb, Image img, int ancho = 16, int alto = 16)
         {
             if (img == null) return;
 
-            int altoTexto = (int)richtb.Font.GetHeight();
-            int ancho = (int)((float)img.Width / img.Height * altoTexto); // mantener proporcion
-            Image imgEscalada = new Bitmap(img, new Size(ancho, altoTexto));
+            Bitmap bmp = new Bitmap(img, new Size(ancho, alto));
 
-            Clipboard.SetImage(imgEscalada);
-            richtb.ReadOnly = false;
-            richtb.Paste();
-            richtb.ReadOnly = true;
+            try
+            {
+                Clipboard.Clear();
+                Clipboard.SetImage(bmp);
+
+                richtb.ReadOnly = false;
+                richtb.Paste();
+                richtb.ReadOnly = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar el chat, estamos trabajando en ello: " + ex.Message);
+            }
         }
 
         private void MostrarTextoConEmojis(RichTextBox richtb, string texto)
         {
             richtb.Clear();
 
-            var matches = Regex.Split(texto, @"(:smile:|:heart:|:sad:)|(\s+)"); // mantener espacios
-            foreach (string palabra in matches)
-            {
-                if (string.IsNullOrEmpty(palabra)) continue;
+            var matches = Regex.Matches(texto, @"(:smile:|:heart:|:sad:)|([^\s:]+)|(\s+)");
 
-                if (emojis.ContainsKey(palabra))
-                    InsertarImagenEnRichTextBox(richtb, emojis[palabra]);
+            foreach (Match match in matches)
+            {
+                if (string.IsNullOrEmpty(match.Value)) continue;
+
+                if (emojis.ContainsKey(match.Value))
+                {
+                    InsertarImagenEnRichTextBox(richtb, emojis[match.Value], 16, 16);
+                }
                 else
-                    richtb.AppendText(palabra); //si no es emoji, texto normal
+                {
+                    richtb.AppendText(match.Value);
+                }
             }
         }
-
 
         private void button1_Click(object sender, EventArgs e)
         {
