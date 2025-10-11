@@ -17,8 +17,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -69,9 +69,9 @@ namespace Chat_Interfaces
 
             this.Controls.Add(buttonEmoji);
 
-            btnEmojiSmile.Click += Emoji_Click;
-            btnEmojiHeart.Click += Emoji_Click;
-            btnEmojiSad.Click += Emoji_Click;
+            btnEmojiSmile.Click += btnSmile_Click;
+            btnEmojiHeart.Click += btnHeart_Click;
+            btnEmojiSad.Click += btnSad_Click;
 
             btnEmojiSmile.Tag = ":smile:";
             btnEmojiSmile.Image = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\smile.png"));
@@ -658,7 +658,9 @@ namespace Chat_Interfaces
                     }
 
                     //Insertar el mensaje en la base de datos
-                    string textoPlano = textBox2.Text;
+                    //string textoPlano = textBox2.Text;
+
+                    string textoPlano = (textBox2.Tag as StringBuilder)?.ToString() ?? textBox2.Text;
 
                     using (MySqlCommand cmdInsert = new MySqlCommand("INSERT INTO mensajes (Id_grupo, ID_usuario, contenido) VALUES(@idg, @idu, @cont)", conn))
                     {
@@ -668,6 +670,7 @@ namespace Chat_Interfaces
                         cmdInsert.ExecuteNonQuery();
                     }
                     textBox2.Clear();
+                    textBox2.Tag = null;
                     // NOTA: Para una aplicación en tiempo real, deberías recargar los mensajes 
                     // después de la inserción, o al menos añadir el mensaje a la UI con el ID del usuario
                     // que lo envió (que es this._idUsuario)
@@ -717,6 +720,7 @@ namespace Chat_Interfaces
             emojis[":sad:"] = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\sad.png"));
         }
 
+        //inserta la imagen del emoji en el richtextbox del historial del chat
         private void InsertarImagenEnRichTextBox(RichTextBox richtb, Image img, int ancho = 16, int alto = 16)
         {
             if (img == null) return;
@@ -734,8 +738,99 @@ namespace Chat_Interfaces
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar el chat, estamos trabajando en ello: " + ex.Message);
+                MessageBox.Show("Error al cargar el chat: " + ex.Message);
             }
+        }
+
+        //inserta la imagen del emoji en el richtextbox del mensaje (textBox2)
+        private void InsertEmoji(RichTextBox rtb, Image emojiImage, string emojiText)
+        {
+            if (emojiImage == null || rtb == null)
+                return;
+
+            int selectionStart = rtb.SelectionStart;
+
+            // copia la imagen en el portapapeles temporalmente
+            Clipboard.SetImage(emojiImage);
+
+            // pega la imagen en el richtextbox
+            rtb.Paste();
+
+            // insertar el texto plano del emoji "oculto" en la propiedad Text
+            // (para que .Text contenga :smile: aunque sea una imagen)
+            rtb.Select(selectionStart, 1); 
+            rtb.SelectedText = emojiText;
+
+            // vuelve a poner la imagen (visualmente)
+            Clipboard.SetImage(emojiImage);
+            rtb.SelectionStart = selectionStart;
+            rtb.Paste();
+
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.Focus();
+        }
+
+        //esta hace lo mismo, intente con dos diferentes
+        /*private void InsertEmoji(RichTextBox rtb, Image emojiImage, string emojiText)
+        {
+            if (emojiImage == null || rtb == null || string.IsNullOrEmpty(emojiText))
+                return;
+
+            //inicializa StringBuilder
+            if (!(rtb.Tag is StringBuilder sb))
+            {
+                sb = new StringBuilder(rtb.Text);
+                rtb.Tag = sb;
+            }
+
+            int visualCursor = rtb.SelectionStart;  // posición actual del cursor en RichTextBox
+
+            //se calcula la posición en el StringBuilder
+            int textCursor = 0;
+            int visualCount = 0;
+
+            //recorremos el sb y contamos los caracteres visuales
+            while (textCursor < sb.Length && visualCount < visualCursor)
+            {
+                if (sb[textCursor] == '\uFFFC') // marcador de objeto en RichTextBox (imagen)
+                {
+                    visualCount++;
+                    textCursor++; // en SB puede ocupar más de un char si emojiText.Length>1
+                }
+                else
+                {
+                    visualCount++;
+                    textCursor++;
+                }
+            }
+
+            //inserta el texto plano del emoji
+            sb.Insert(textCursor, emojiText);
+
+            // inserta imagen visualmente
+            Clipboard.SetImage(emojiImage);
+            rtb.SelectionStart = visualCursor;
+            rtb.Paste();
+
+            // mueve el cursor después del emoji
+            rtb.SelectionStart = visualCursor + 1;
+            rtb.Focus();
+        }*/
+
+
+        private void btnSmile_Click(object sender, EventArgs e)
+        {
+            InsertEmoji(textBox2, Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\smile.png")), ":smile:");
+        }
+
+        private void btnHeart_Click(object sender, EventArgs e)
+        {
+            InsertEmoji(textBox2, Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\heart.png")), ":heart:");
+        }
+
+        private void btnSad_Click(object sender, EventArgs e)
+        {
+            InsertEmoji(textBox2, Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\sad.png")), ":sad:");
         }
 
         private void MostrarTextoConEmojis(RichTextBox richtb, string texto)
@@ -848,9 +943,15 @@ namespace Chat_Interfaces
             // Para el propósito de este ejercicio, dejaremos solo la conexión.
             listBox1.Items.Clear();
             string chec = textBox1.Text;
-            if (this.Visible)
+
+            if (!this.Visible)
+                return;
+
+            try
             {
-                conexion.Open();
+                if (conexion.State != ConnectionState.Open)
+                    conexion.Open();
+
                 //LLena el listbox con los grupos que alla en la base de datos (probado y funcional)
                 using (MySqlCommand cmdGrupos = new MySqlCommand("SELECT Nombre_grupo FROM grupos ", conexion))
                 using (MySqlDataReader readerGrupos = cmdGrupos.ExecuteReader())
@@ -918,19 +1019,19 @@ namespace Chat_Interfaces
                         }
                     }
                 }
-                try
-                {
-                    if (conexion.State != ConnectionState.Open) conexion.Open();
-                    // Aquí se llamaría a una función de carga de grupos si la hubieras extraído.
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Error al abrir conexión al cargar chats: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                finally
-                {
-                    if (conexion.State == ConnectionState.Open) conexion.Close();
-                }
+            }
+            /*try
+            {
+                if (conexion.State != ConnectionState.Open) conexion.Open();
+                // Aquí se llamaría a una función de carga de grupos si la hubieras extraído.
+            }*/
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al abrir conexión al cargar chats: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (conexion.State == ConnectionState.Open) conexion.Close();
             }
         }
 
