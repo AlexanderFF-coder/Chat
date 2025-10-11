@@ -83,6 +83,7 @@
             this.Controls.Add(this.label1);
             this.Name = "Crea_grupo";
             this.Text = "Crea_grupo";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Crea_grupo_FormClosing);
             this.Load += new System.EventHandler(this.Crea_grupo_Load);
             this.ResumeLayout(false);
             this.PerformLayout();

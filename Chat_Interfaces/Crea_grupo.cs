@@ -19,15 +19,16 @@ namespace Chat_Interfaces
         MySqlDataReader leer1;
         // CAMBIO 1: Eliminamos la dependencia estática y la reemplazamos por una variable de instancia
         private string _idUsuario;
-
+        public Chat ch;
         // CAMBIO 2: El constructor ahora recibe el ID del usuario creador
-        public Crea_grupo(string idUsuario)
+        public Crea_grupo(string idUsuario,Chat ch)
         {
             InitializeComponent();
+            this.ch = ch;
             // Asignamos el ID del usuario
             _idUsuario = idUsuario;
-            //conexion = new MySqlConnection("Server=localhost;Port=3306;Database=test;Uid=Alex;Pwd=12345");
-            conexion = new MySqlConnection("Server=localhost;Port=3306;Database=chat;Uid=root;Pwd=Alex");
+            conexion = new MySqlConnection("Server=localhost;Port=3306;Database=test;Uid=Alex;Pwd=12345");
+            //conexion = new MySqlConnection("Server=localhost;Port=3306;Database=chat;Uid=root;Pwd=Alex");
             conexion.Open();
         }
 
@@ -112,10 +113,16 @@ namespace Chat_Interfaces
             }
 
             // 2. Abrir el formulario para agregar miembros, pasando los IDs
-            AgregarMiembros agregarMiembros = new AgregarMiembros(idGrupoRecienCreado, idCreadorInt);
+            AgregarMiembros agregarMiembros = new AgregarMiembros(idGrupoRecienCreado, idCreadorInt,ch);
             agregarMiembros.Show();
             this.Hide();
 
+        }
+
+        private void Crea_grupo_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            //Abilitamos el form de chat
+            ch.Enabled = true;
         }
     }
 }

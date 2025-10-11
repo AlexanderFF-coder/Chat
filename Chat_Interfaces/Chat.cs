@@ -17,8 +17,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -520,14 +520,18 @@ namespace Chat_Interfaces
         private void label1_Click(object sender, EventArgs e)
         {
             // Pasamos el ID del usuario actual al crear el grupo
-            Crea_grupo crea = new Crea_grupo(_idUsuario);
+            Crea_grupo crea = new Crea_grupo(_idUsuario,this);
             if (conexion.State == ConnectionState.Open) conexion.Close();
             crea.Show();
-            this.Hide();
+            this.Enabled = false;
         }
-
-        private void Chat_VisibleChanged(object sender, EventArgs e)
+        //Referencia para habilitar el chat desde otro formulario
+        public Chat()
         {
+            this.Enabled = true;
+        }
+        private void Chat_VisibleChanged(object sender, EventArgs e)
+        { /*
             // Esta lógica es compleja. Para simplificar, si quieres que los chats se recarguen al ser visible,
             // puedes llamar a la función de carga/filtrado. 
             // Para el propósito de este ejercicio, dejaremos solo la conexión.
@@ -615,7 +619,7 @@ namespace Chat_Interfaces
                 {
                     if (conexion.State == ConnectionState.Open) conexion.Close();
                 }
-            }
+            }*/
         }
 
         //Pendiente
@@ -773,9 +777,9 @@ namespace Chat_Interfaces
                     if (leer.Read())
                     {
                         int idg=(int)leer["id"];
-                        AgregarMiembros ag=new AgregarMiembros(idg, Convert.ToInt32(_idUsuario));
+                        AgregarMiembros ag=new AgregarMiembros(idg, Convert.ToInt32(_idUsuario),this);
                         ag.Show();
-                        this.Hide();
+                        this.Enabled =false;
 
                     }
                     else
@@ -827,7 +831,7 @@ namespace Chat_Interfaces
                     }
 
                 }
-                textBox2.Select(val, 0);
+                    textBox2.Select(val, 0);
                 textBox2.SelectionColor = Color.Black;
             }
         }
@@ -835,6 +839,99 @@ namespace Chat_Interfaces
         private void buttonEmoji_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void Chat_Activated(object sender, EventArgs e)
+        {
+            // Esta lógica es compleja. Para simplificar, si quieres que los chats se recarguen al ser visible,
+            // puedes llamar a la función de carga/filtrado. 
+            // Para el propósito de este ejercicio, dejaremos solo la conexión.
+            listBox1.Items.Clear();
+            string chec = textBox1.Text;
+            if (this.Visible)
+            {
+                conexion.Open();
+                //LLena el listbox con los grupos que alla en la base de datos (probado y funcional)
+                using (MySqlCommand cmdGrupos = new MySqlCommand("SELECT Nombre_grupo FROM grupos ", conexion))
+                using (MySqlDataReader readerGrupos = cmdGrupos.ExecuteReader())
+                {
+                    while (readerGrupos.Read())
+                    {
+                        listBox1.Items.Add(readerGrupos["Nombre_grupo"].ToString());
+                        //Mostrar linea en medio pero no esta activa o puede presionarse en el programa
+                        listBox1.Items.Add("--------------------------------------------------");
+                    }
+                }
+
+                for (int i = 0; i < listBox1.Items.Count; i++)
+                {
+                    //Si esta esconde los elementos que no son
+                    if (listBox1.Items[i].ToString().IndexOf(chec, StringComparison.CurrentCultureIgnoreCase) < 0)
+                    {
+                        listBox1.Items.RemoveAt(i);
+                        i--;
+                    }
+                }
+
+                int cont = 0;
+                //Eliminamos los grupos que no corresponden a la persona con el id de inicio
+                for (int i = listBox1.Items.Count - 1; i >= 0; i--)
+                {
+                    //Checamos el id del grupo
+                    string nom = listBox1.Items[i].ToString();
+
+                    if (nom.Contains("---")) continue; // Saltar separadores
+
+                    int idob = 0;
+
+                    using (MySqlCommand cmdGetId = new MySqlCommand("Select id from grupos where Nombre_grupo=@nom", conexion))
+                    {
+                        cmdGetId.Parameters.AddWithValue("@nom", nom);
+                        using (MySqlDataReader readerId = cmdGetId.ExecuteReader())
+                        {
+                            if (readerId.Read())
+                            {
+                                idob = (int)readerId["id"];
+                            }
+                        }
+                    }
+
+                    if (idob == 0)
+                    {
+                        listBox1.Items.RemoveAt(i);
+                        if (i > 0 && listBox1.Items[i - 1].ToString().Contains("---"))
+                            listBox1.Items.RemoveAt(i - 1);
+                        continue;
+                    }
+
+                    //Ahora checa el id de miembro grupo al actual
+                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuario=@idus", conexion))
+                    {
+                        comando1.Parameters.AddWithValue("@id", idob);
+                        comando1.Parameters.AddWithValue("@idus", _idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
+                        cont = Convert.ToInt32(comando1.ExecuteScalar());
+                        if (cont == 0)
+                        {
+                            listBox1.Items.RemoveAt(i);
+                            if (i > 0 && listBox1.Items[i - 1].ToString().Contains("---"))
+                                listBox1.Items.RemoveAt(i - 1);
+                        }
+                    }
+                }
+                try
+                {
+                    if (conexion.State != ConnectionState.Open) conexion.Open();
+                    // Aquí se llamaría a una función de carga de grupos si la hubieras extraído.
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al abrir conexión al cargar chats: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    if (conexion.State == ConnectionState.Open) conexion.Close();
+                }
+            }
         }
 
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)

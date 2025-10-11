@@ -14,14 +14,13 @@ namespace Chat_Interfaces
 {
     public partial class AgregarMiembros : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
-
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables para almacenar los IDs del grupo y del creador
         private int _idGrupo;
         private int _idCreador;
-
+        Chat ch;
         // Clase simple para guardar el ID y el Nombre del usuario
         private class UsuarioItem
         {
@@ -36,14 +35,13 @@ namespace Chat_Interfaces
         }
 
         // El constructor ahora recibe el ID del grupo y el ID del usuario creador
-        public AgregarMiembros(int idGrupo, int idCreador)
+        public AgregarMiembros(int idGrupo, int idCreador,Chat ch)
         {
             InitializeComponent();
             _idGrupo = idGrupo;
             _idCreador = idCreador;
-
             this.Text = "Agregar Miembros al Grupo ID: " + idGrupo; // Título de la ventana
-
+            this.ch = ch;
             // Configurar el CheckedListBox para que muestre el nombre y guarde el ID
             checkedListBoxUsuarios.DisplayMember = "NombreCompleto";
             checkedListBoxUsuarios.ValueMember = "Id";
@@ -132,8 +130,7 @@ namespace Chat_Interfaces
             if (!string.IsNullOrEmpty(email))
             {
                 // La navegación será exitosa
-                Chat chatW = new Chat(email, _idCreador.ToString(), nombre);
-                chatW.Show();
+                ch.Enabled = true;
                 this.Hide();
             }
             else
@@ -148,7 +145,8 @@ namespace Chat_Interfaces
 
         private void AgregarMiembros_FormClosing(object sender, FormClosingEventArgs e)
         {
-            Environment.Exit(0);
+            //Activa el form chat y cierra esteform
+            ch.Enabled = true;
         }
 
         private void button1_Click(object sender, EventArgs e)
