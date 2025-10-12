@@ -17,8 +17,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -38,7 +38,7 @@ namespace Chat_Interfaces
 
         // Se eliminan los campos estáticos problemáticos (id, ids) y se usa _idUsuario
         int tam = 0, tamaux;
-
+        string respaldo= "";
         //diccionario de emojis
         private Dictionary<string, Image> emojis = new Dictionary<string, Image>();
 
@@ -656,6 +656,10 @@ namespace Chat_Interfaces
                     {
                         return;
                     }
+                    //Convierte los emojis a texto plano
+                    //string textoPlano = ConvertirEmojisATextoPlano(textBox2.Text);
+                    //textBox2.Text = textoPlano;
+                    //Si no hay nada no hace nada
 
                     //Insertar el mensaje en la base de datos
                     //string textoPlano = textBox2.Text;
@@ -666,9 +670,10 @@ namespace Chat_Interfaces
                     {
                         cmdInsert.Parameters.AddWithValue("@idg", id);
                         cmdInsert.Parameters.AddWithValue("@idu", Convert.ToInt32(_idUsuario)); // Clave del usuario que manda el mensaje
-                        cmdInsert.Parameters.AddWithValue("@cont", textoPlano);
+                        cmdInsert.Parameters.AddWithValue("@cont", respaldo);
                         cmdInsert.ExecuteNonQuery();
                     }
+                    respaldo = "";
                     textBox2.Clear();
                     textBox2.Tag = null;
                     // NOTA: Para una aplicación en tiempo real, deberías recargar los mensajes 
@@ -696,7 +701,6 @@ namespace Chat_Interfaces
 
         private string ConvertirEmojisATextoPlano(string texto)
         {
-            //por si el usuario escribió un emoji real
             texto = texto.Replace("😁", ":smile:");
             texto = texto.Replace("❤️", ":heart:");
             texto = texto.Replace("😔", ":sad:");
@@ -751,15 +755,17 @@ namespace Chat_Interfaces
             int selectionStart = rtb.SelectionStart;
 
             // copia la imagen en el portapapeles temporalmente
-            Clipboard.SetImage(emojiImage);
+            /*Clipboard.SetImage(emojiImage);
 
             // pega la imagen en el richtextbox
-            rtb.Paste();
+            rtb.Paste();*/
 
             // insertar el texto plano del emoji "oculto" en la propiedad Text
             // (para que .Text contenga :smile: aunque sea una imagen)
-            rtb.Select(selectionStart, 1); 
-            rtb.SelectedText = emojiText;
+            /* rtb.Select(selectionStart, 1); 
+              rtb.SelectedText = emojiText;*/
+            //Agrega a la cadena auxiliar donde tiene las letras 
+            respaldo =respaldo+ emojiText; 
 
             // vuelve a poner la imagen (visualmente)
             Clipboard.SetImage(emojiImage);
@@ -888,6 +894,20 @@ namespace Chat_Interfaces
 
         private void textBox2_TextChanged(object sender, EventArgs e)
         {
+            if(textBox2.Text.Length==0)
+            {
+                respaldo = "";
+                return;
+            }
+            //Agrega el texto que se esta creando a la cadena respaldo sin perder el texto pasado usando respaldo
+            if (respaldo != "")
+            {
+                respaldo = respaldo + textBox2.Text.Substring(textBox2.Text.Length - 1, 1);
+            }
+            else
+            {
+                respaldo = textBox2.Text;
+            }
 
         }
 
@@ -926,8 +946,22 @@ namespace Chat_Interfaces
                     }
 
                 }
-                    textBox2.Select(val, 0);
+                textBox2.Select(val, 0);
                 textBox2.SelectionColor = Color.Black;
+                //Si es una imagen elimina eso y en la cadena de respaldo elimina el texto plano
+                int cont = 0;
+                if (textBox2.Text[val - 1] != '\uFFFC')
+                {
+                    while (cont < 2)
+                    {
+                        if (respaldo[respaldo.Length - 1] == ':')
+                        {
+                            cont++;
+                        }
+                        respaldo = respaldo.Remove(respaldo.Length - 1, 1);
+                    }
+                    textBox2.SelectionStart = val;
+                }
             }
         }
 
