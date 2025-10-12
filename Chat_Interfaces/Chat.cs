@@ -17,8 +17,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
+        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables de sesión ahora como campos de instancia
         private string _usuarioEmail;
@@ -203,15 +203,13 @@ namespace Chat_Interfaces
             int atIndex = textBox2.Text.LastIndexOf("@");
             if (atIndex >= 0)
             {
-                string seleccion = "@" + usuarioSeleccionado;
-                // Reemplazar desde el @ hasta donde se escriba
-                textBox2.Text = textBox2.Text.Substring(0, atIndex) + seleccion + " ";
+                string seleccion = "@" + usuarioSeleccionado + " ";
+                
+                textBox2.Text = textBox2.Text.Substring(0, atIndex) + seleccion;
 
-                // Colorear todo el texto de negro primero
-                textBox2.SelectAll();
-                textBox2.SelectionColor = Color.Black;
+                respaldo = textBox2.Text;
 
-                // Colorear solo la mención de azul
+                //colorea la mencion actual
                 textBox2.Select(atIndex, seleccion.Length);
                 textBox2.SelectionColor = Color.Blue;
 
@@ -444,30 +442,7 @@ namespace Chat_Interfaces
                             MostrarTextoConEmojis(txt, contenido);
 
                             // Buscar menciones y colorearlas
-                            int indice = 0;
-                            while (indice < txt.Text.Length)
-                            {
-                                //Checa ini palabra
-                                int indiceaux = txt.Text.IndexOf('@', indice);
-
-                                //Checamos si es que esta el arroba
-                                if (indiceaux == -1) break;
-
-                                //Checa fin palabra
-                                int esp = txt.Text.IndexOf(' ', indiceaux);
-                                if (esp == -1) esp = txt.Text.Length;
-
-                                //Obtiene usuario
-                                string us = txt.Text.Substring(indiceaux + 1, esp - indiceaux - 1);
-                                if (listaUsuarios.Contains(us))
-                                {
-                                    // Colorear la mención de azul
-                                    txt.Select(indiceaux,us.Length+1);
-                                    txt.SelectionColor=Color.Blue;
-                                }
-                                //Si es el fin termina
-                                indice=esp;
-                            }
+                            ColorearMencionesEnHistorial(txt);
 
                             // Restaurar color normal
                             txt.Select(txt.TextLength, 0);
@@ -621,6 +596,24 @@ namespace Chat_Interfaces
                 }
             }*/
         }
+
+        private void ColorearMencionesEnHistorial(RichTextBox txt)
+        {
+            foreach (string usuario in listaUsuarios)
+            {
+                //usnado regex pa encontrar los @
+                string pattern = "@" + Regex.Escape(usuario);
+                foreach (Match match in Regex.Matches(txt.Text, pattern))
+                {
+                    txt.Select(match.Index, match.Length);
+                    txt.SelectionColor = Color.Blue;
+                }
+            }
+
+            txt.Select(txt.TextLength, 0);
+            txt.SelectionColor = Color.Black;
+        }
+
 
         //Pendiente
         private void label2_Click(object sender, EventArgs e)
@@ -1067,6 +1060,11 @@ namespace Chat_Interfaces
             {
                 if (conexion.State == ConnectionState.Open) conexion.Close();
             }
+        }
+
+        private void panel1_Paint(object sender, PaintEventArgs e)
+        {
+
         }
 
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)
