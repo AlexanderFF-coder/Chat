@@ -39,6 +39,8 @@ namespace Chat_Interfaces
         // Se eliminan los campos estáticos problemáticos (id, ids) y se usa _idUsuario
         int tam = 0, tamaux;
         string respaldo= "";
+        bool borrando = false;
+
         //diccionario de emojis
         private Dictionary<string, Image> emojis = new Dictionary<string, Image>();
 
@@ -887,6 +889,8 @@ namespace Chat_Interfaces
 
         private void textBox2_TextChanged(object sender, EventArgs e)
         {
+            if (borrando) return;
+
             if(textBox2.Text.Length==0)
             {
                 respaldo = "";
@@ -894,13 +898,9 @@ namespace Chat_Interfaces
             }
             //Agrega el texto que se esta creando a la cadena respaldo sin perder el texto pasado usando respaldo
             if (respaldo != "")
-            {
-                respaldo = respaldo + textBox2.Text.Substring(textBox2.Text.Length - 1, 1);
-            }
+                respaldo += textBox2.Text.Substring(textBox2.Text.Length - 1, 1);
             else
-            {
                 respaldo = textBox2.Text;
-            }
 
         }
 
@@ -914,14 +914,22 @@ namespace Chat_Interfaces
 
             if (e.KeyCode == Keys.Back)
             {
+                if (textBox2.SelectionStart == 0 || textBox2.TextLength == 0)
+                    return;
+
+                borrando = true;
+
                 //Obtenemos el inicio del cursor donde esta
                 int val = textBox2.SelectionStart;
-                //Mientra no sea ini o fin
-                if (val == 0)
+
+                //si el respaldo esta vacio no hay nada que borrar
+                if (respaldo.Length == 0)
                 {
+                    borrando = false;
                     return;
                 }
-                int inic = val;
+
+                /*int inic = val;
                 char c = textBox2.Text[val - 1];
                 textBox2.Select(val, 1);
                 if (textBox2.SelectionColor == Color.Blue)
@@ -940,21 +948,30 @@ namespace Chat_Interfaces
 
                 }
                 textBox2.Select(val, 0);
-                textBox2.SelectionColor = Color.Black;
+                textBox2.SelectionColor = Color.Black;*/
                 //Si es una imagen elimina eso y en la cadena de respaldo elimina el texto plano
-                int cont = 0;
-                if (textBox2.Text[val - 1] != '\uFFFC')
+
+                if (textBox2.Text[val - 1] == '\uFFFC')
                 {
-                    while (cont < 2)
+
+                    int cont = 0;
+                    while (cont < 2 && respaldo.Length > 0)
                     {
                         if (respaldo[respaldo.Length - 1] == ':')
-                        {
                             cont++;
-                        }
+
                         respaldo = respaldo.Remove(respaldo.Length - 1, 1);
                     }
-                    textBox2.SelectionStart = val;
+
+                    // eliminar el marcador visual del emoji
+                    textBox2.Select(val - 1, 1);
+                    textBox2.SelectedText = "";
                 }
+                else
+                    respaldo = respaldo.Remove(respaldo.Length - 1, 1);
+
+                textBox2.SelectionStart = Math.Max(0, textBox2.TextLength);
+                borrando = false;
             }
         }
 
