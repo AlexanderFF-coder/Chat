@@ -760,7 +760,10 @@ namespace Chat_Interfaces
             /* rtb.Select(selectionStart, 1); 
               rtb.SelectedText = emojiText;*/
             //Agrega a la cadena auxiliar donde tiene las letras 
-            respaldo =respaldo+ emojiText; 
+            if (respaldo.Length < selectionStart)
+                respaldo += emojiText;
+            else
+                respaldo = respaldo.Insert(selectionStart, emojiText);
 
             // vuelve a poner la imagen (visualmente)
             Clipboard.SetImage(emojiImage);
@@ -906,7 +909,7 @@ namespace Chat_Interfaces
 
         private void textBox2_KeyDown(object sender, KeyEventArgs e)
         {
-            textBox2.SelectionStart = textBox2.Text.Length;
+            //textBox2.SelectionStart = textBox2.Text.Length;
         }
 
         private void textBox2_KeyUp_1(object sender, KeyEventArgs e)
