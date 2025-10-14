@@ -69,15 +69,16 @@ namespace Chat_Interfaces
 
         private void btnLogin_Click(object sender, EventArgs e)
         {
-            string email = textBoxEmail.Text.Trim();
+            // Variables de alamcenamiento de datos
+            string email = textBoxEmail.Text;
             string password = textBoxPassword.Text;
+
             string hashedPassword = string.Empty;
-            // ---> DECLARAMOS LAS NUEVAS VARIABLES DE SESIÓN
             string idUsuario = string.Empty;
             string nombreUsuario = string.Empty;
-            // <---
 
-            // Validar que los campos no esten vacios
+
+            // Validar que los campos de correo y contraseña no estén vacíos
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
                 MessageBox.Show("Por favor, ingrese email y contraseña.", "Campos Vacíos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -88,10 +89,8 @@ namespace Chat_Interfaces
             try
             {
                 conexion.Open();
-
-                // ---> CONSULTA OPTIMIZADA: Traemos id, password y nombre en una sola query
+                // Consulta de la contraseña para el email proporcionado
                 string query = "SELECT id, password, nombre FROM usuarios WHERE email = @email";
-                // <---
 
                 comando = new MySqlCommand(query, conexion);
                 comando.Parameters.AddWithValue("@email", email);
@@ -102,12 +101,10 @@ namespace Chat_Interfaces
                 {
                     //Si encuentra el usuario, obtiene los datos necesarios
                     hashedPassword = leer["password"].ToString();
-                    // ---> CAPTURAMOS ID Y NOMBRE
+                    // Capturamos el id y nombre del usuario
                     idUsuario = leer["id"].ToString();
                     nombreUsuario = leer["nombre"].ToString();
-                    // <---
                 }
-
                 leer.Close(); //Cerrar lector
             }
             catch (Exception ex)
@@ -133,14 +130,9 @@ namespace Chat_Interfaces
 
             if (isPasswordValid)
             {
+                // Contraseña correcta
                 MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                // ---> ELIMINAMOS LA SEGUNDA CONSULTA INNECESARIA AQUÍ <---
-
-                // ---> CORREGIMOS LA LLAMADA AL CONSTRUCTOR DE CHAT
                 Chat chatW = new Chat(email, idUsuario, nombreUsuario);
-                // <---
-
                 chatW.Show();
                 this.Hide();
             }

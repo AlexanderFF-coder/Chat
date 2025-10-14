@@ -446,10 +446,6 @@ namespace Chat_Interfaces
                             // Buscar menciones y colorearlas
                             ColorearMencionesEnHistorial(txt);
 
-                            // Restaurar color normal
-                            txt.Select(txt.TextLength, 0);
-                            txt.SelectionColor = Color.Black;
-
                             pan.Controls.Add(txt);
 
                             // Ajustar altura del panel según contenido
@@ -508,102 +504,20 @@ namespace Chat_Interfaces
             this.Enabled = true;
         }
         private void Chat_VisibleChanged(object sender, EventArgs e)
-        { /*
-            // Esta lógica es compleja. Para simplificar, si quieres que los chats se recarguen al ser visible,
-            // puedes llamar a la función de carga/filtrado. 
-            // Para el propósito de este ejercicio, dejaremos solo la conexión.
-            string chec = textBox1.Text;
-            if (this.Visible)
-            {
-                conexion.Open();
-                //LLena el listbox con los grupos que alla en la base de datos (probado y funcional)
-                using (MySqlCommand cmdGrupos = new MySqlCommand("SELECT Nombre_grupo FROM grupos ", conexion))
-                using (MySqlDataReader readerGrupos = cmdGrupos.ExecuteReader())
-                {
-                    while (readerGrupos.Read())
-                    {
-                        listBox1.Items.Add(readerGrupos["Nombre_grupo"].ToString());
-                        //Mostrar linea en medio pero no esta activa o puede presionarse en el programa
-                        listBox1.Items.Add("--------------------------------------------------");
-                    }
-                }
-
-                for (int i = 0; i < listBox1.Items.Count; i++)
-                {
-                    //Si esta esconde los elementos que no son
-                    if (listBox1.Items[i].ToString().IndexOf(chec, StringComparison.CurrentCultureIgnoreCase) < 0)
-                    {
-                        listBox1.Items.RemoveAt(i);
-                        i--;
-                    }
-                }
-
-                int cont = 0;
-                //Eliminamos los grupos que no corresponden a la persona con el id de inicio
-                for (int i = listBox1.Items.Count - 1; i >= 0; i--)
-                {
-                    //Checamos el id del grupo
-                    string nom = listBox1.Items[i].ToString();
-
-                    if (nom.Contains("---")) continue; // Saltar separadores
-
-                    int idob = 0;
-
-                    using (MySqlCommand cmdGetId = new MySqlCommand("Select id from grupos where Nombre_grupo=@nom", conexion))
-                    {
-                        cmdGetId.Parameters.AddWithValue("@nom", nom);
-                        using (MySqlDataReader readerId = cmdGetId.ExecuteReader())
-                        {
-                            if (readerId.Read())
-                            {
-                                idob = (int)readerId["id"];
-                            }
-                        }
-                    }
-
-                    if (idob == 0)
-                    {
-                        listBox1.Items.RemoveAt(i);
-                        if (i > 0 && listBox1.Items[i - 1].ToString().Contains("---"))
-                            listBox1.Items.RemoveAt(i - 1);
-                        continue;
-                    }
-
-                    //Ahora checa el id de miembro grupo al actual
-                    using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuario=@idus", conexion))
-                    {
-                        comando1.Parameters.AddWithValue("@id", idob);
-                        comando1.Parameters.AddWithValue("@idus", _idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
-                        cont = Convert.ToInt32(comando1.ExecuteScalar());
-                        if (cont == 0)
-                        {
-                            listBox1.Items.RemoveAt(i);
-                            if (i > 0 && listBox1.Items[i - 1].ToString().Contains("---"))
-                                listBox1.Items.RemoveAt(i - 1);
-                        }
-                    }
-                }
-                try
-                {
-                    if (conexion.State != ConnectionState.Open) conexion.Open();
-                    // Aquí se llamaría a una función de carga de grupos si la hubieras extraído.
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Error al abrir conexión al cargar chats: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                finally
-                {
-                    if (conexion.State == ConnectionState.Open) conexion.Close();
-                }
-            }*/
+        { 
         }
 
         private void ColorearMencionesEnHistorial(RichTextBox txt)
         {
+            // Guardar posición inicial del cursor
+            int originalSelectionStart = txt.SelectionStart;
+            int originalSelectionLength = txt.SelectionLength;
+
+            txt.SuspendLayout();
+
+            // Colorear menciones
             foreach (string usuario in listaUsuarios)
             {
-                //usnado regex pa encontrar los @
                 string pattern = "@" + Regex.Escape(usuario);
                 foreach (Match match in Regex.Matches(txt.Text, pattern))
                 {
@@ -612,8 +526,16 @@ namespace Chat_Interfaces
                 }
             }
 
-            txt.Select(txt.TextLength, 0);
-            txt.SelectionColor = Color.Black;
+            // Verificar si el usuario movió el cursor durante la ejecución
+            bool cursorNoCambiado = txt.SelectionStart == originalSelectionStart && txt.SelectionLength == originalSelectionLength;
+
+            if (cursorNoCambiado)
+            {
+                txt.Select(originalSelectionStart, originalSelectionLength);
+                txt.SelectionColor = Color.Black;
+            }
+
+            txt.ResumeLayout();
         }
 
 
@@ -749,21 +671,8 @@ namespace Chat_Interfaces
 
             int selectionStart = rtb.SelectionStart;
 
-            // copia la imagen en el portapapeles temporalmente
-            /*Clipboard.SetImage(emojiImage);
-
-            // pega la imagen en el richtextbox
-            rtb.Paste();*/
-
-            // insertar el texto plano del emoji "oculto" en la propiedad Text
-            // (para que .Text contenga :smile: aunque sea una imagen)
-            /* rtb.Select(selectionStart, 1); 
-              rtb.SelectedText = emojiText;*/
             //Agrega a la cadena auxiliar donde tiene las letras 
-            if (respaldo.Length < selectionStart)
-                respaldo += emojiText;
-            else
-                respaldo = respaldo.Insert(selectionStart, emojiText);
+            respaldo= respaldo + emojiText;
 
             // vuelve a poner la imagen (visualmente)
             Clipboard.SetImage(emojiImage);
@@ -773,54 +682,6 @@ namespace Chat_Interfaces
             rtb.SelectionStart = rtb.TextLength;
             rtb.Focus();
         }
-
-        //esta hace lo mismo, intente con dos diferentes
-        /*private void InsertEmoji(RichTextBox rtb, Image emojiImage, string emojiText)
-        {
-            if (emojiImage == null || rtb == null || string.IsNullOrEmpty(emojiText))
-                return;
-
-            //inicializa StringBuilder
-            if (!(rtb.Tag is StringBuilder sb))
-            {
-                sb = new StringBuilder(rtb.Text);
-                rtb.Tag = sb;
-            }
-
-            int visualCursor = rtb.SelectionStart;  // posición actual del cursor en RichTextBox
-
-            //se calcula la posición en el StringBuilder
-            int textCursor = 0;
-            int visualCount = 0;
-
-            //recorremos el sb y contamos los caracteres visuales
-            while (textCursor < sb.Length && visualCount < visualCursor)
-            {
-                if (sb[textCursor] == '\uFFFC') // marcador de objeto en RichTextBox (imagen)
-                {
-                    visualCount++;
-                    textCursor++; // en SB puede ocupar más de un char si emojiText.Length>1
-                }
-                else
-                {
-                    visualCount++;
-                    textCursor++;
-                }
-            }
-
-            //inserta el texto plano del emoji
-            sb.Insert(textCursor, emojiText);
-
-            // inserta imagen visualmente
-            Clipboard.SetImage(emojiImage);
-            rtb.SelectionStart = visualCursor;
-            rtb.Paste();
-
-            // mueve el cursor después del emoji
-            rtb.SelectionStart = visualCursor + 1;
-            rtb.Focus();
-        }*/
-
 
         private void btnSmile_Click(object sender, EventArgs e)
         {
@@ -879,7 +740,6 @@ namespace Chat_Interfaces
                         AgregarMiembros ag=new AgregarMiembros(idg, Convert.ToInt32(_idUsuario),this);
                         ag.Show();
                         this.Enabled =false;
-
                     }
                     else
                     {
@@ -932,26 +792,6 @@ namespace Chat_Interfaces
                     return;
                 }
 
-                /*int inic = val;
-                char c = textBox2.Text[val - 1];
-                textBox2.Select(val, 1);
-                if (textBox2.SelectionColor == Color.Blue)
-                {
-                    while (val >= 0)
-                    {
-                        //Una vez que tenemos los elementos en azul los eliminamos todos y despues cambiamos a negro
-                        textBox2.Select(val, 1);
-                        if (textBox2.SelectionColor != Color.Blue)
-                        {
-                            break;
-                        }
-                        textBox2.Text = textBox2.Text.Remove(val - 1, 1);
-                        val--;
-                    }
-
-                }
-                textBox2.Select(val, 0);
-                textBox2.SelectionColor = Color.Black;*/
                 //Si es una imagen elimina eso y en la cadena de respaldo elimina el texto plano
 
                 if (textBox2.Text[val - 1] == '\uFFFC')
@@ -1067,11 +907,6 @@ namespace Chat_Interfaces
                     }
                 }
             }
-            /*try
-            {
-                if (conexion.State != ConnectionState.Open) conexion.Open();
-                // Aquí se llamaría a una función de carga de grupos si la hubieras extraído.
-            }*/
             catch (Exception ex)
             {
                 MessageBox.Show("Error al abrir conexión al cargar chats: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1086,7 +921,6 @@ namespace Chat_Interfaces
         {
 
         }
-
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)
         {
             // Intentar cerrar la conexión si está abierta

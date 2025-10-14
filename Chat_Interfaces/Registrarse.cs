@@ -107,7 +107,6 @@ namespace Chat_Interfaces
                 {
                     conexion.Open();
                 }
-
                 // Verificar si el email ya existe
                 if (EmailExiste(email))
                 {
@@ -116,7 +115,6 @@ namespace Chat_Interfaces
                     textBoxEmail.Focus();
                     return;
                 }
-
                 // Insertar nuevo usuario
                 string query = "INSERT INTO usuarios (nombre, email, password,fecha) VALUES (@nombre, @correo, @password,@fecha)";
 
@@ -126,23 +124,19 @@ namespace Chat_Interfaces
                     comando.Parameters.AddWithValue("@correo", email);
                     comando.Parameters.AddWithValue("@password", hashedPass);
                     //Obtengo la fecha que indico en el formato año mes y dia
-                    string fecha=dateTimeFechaNac.Value.ToString("yyyy-MM-dd");
-                    comando.Parameters.AddWithValue("@fecha",fecha );
+                    string fecha = dateTimeFechaNac.Value.ToString("yyyy-MM-dd");
+                    comando.Parameters.AddWithValue("@fecha", fecha);
                 }
-
                 int filasAfectadas = comando.ExecuteNonQuery();
 
                 if (filasAfectadas > 0)
                 {
                     MessageBox.Show("¡Registro exitoso! Ya puedes iniciar sesión.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                     // Establecer bandera como exito
                     registroExitoso = true;
-
                     // Redireccionar al formulario de inicio de sesión
                     InicioSesion ventanaSes = new InicioSesion();
                     ventanaSes.Show();
-
                     //Cerrar esta forma
                     this.Close();
                 }
@@ -180,9 +174,9 @@ namespace Chat_Interfaces
             {
                 InicioSesion ventanaSes = new InicioSesion();
                 ventanaSes.Show();
-
             }
         }
+
         private void Registrarse_Load(object sender, EventArgs e)
         {
 
