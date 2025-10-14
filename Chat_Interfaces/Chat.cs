@@ -222,10 +222,6 @@ namespace Chat_Interfaces
 
             panelMenciones.Visible = false;
         }
-
-
-
-
         private void btnEmoji_Click(object sender, EventArgs e)
         {
             panelEmojis.Visible = !panelEmojis.Visible; // Mostrar u ocultar el panel de emojis
