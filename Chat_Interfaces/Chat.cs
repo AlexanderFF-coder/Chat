@@ -12,7 +12,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+using System.Net.Sockets;
+using System.Threading;
 namespace Chat_Interfaces
 {
     public partial class Chat : Form
@@ -24,7 +25,8 @@ namespace Chat_Interfaces
         private string _usuarioEmail;
         private string _idUsuario;
         private string _nombreUsuario;
-
+        // Servidor
+        TcpListener servidor;
         //variables para la mencion (@)
         private Panel panelMenciones;
         private ListBox listBoxUsuarios;
@@ -63,7 +65,6 @@ namespace Chat_Interfaces
 
             // Ya NO se necesita esta línea, ahora usamos _idUsuario
             // id = InicioSesion.Sesionid.IdUsuario;
-
             buttonEmoji.Click += btnEmoji_Click;
             buttonEmoji.Image = Image.FromFile(Path.Combine(Application.StartupPath, @"..\..\Resources\smile.png"));
             buttonEmoji.Image = new Bitmap(buttonEmoji.Image, new Size(14, 14));
@@ -926,7 +927,6 @@ namespace Chat_Interfaces
                     conexion.Close();
             }
             catch { /* Ignorar errores de cierre */ }
-            conexion.Close();
             Application.Exit();
         }
     }

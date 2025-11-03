@@ -10,7 +10,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Chat_Interfaces;
-
+using System.Net.Sockets;
+using System.Threading;
 namespace Chat_Interfaces
 {
     public partial class InicioSesion : Form
@@ -21,7 +22,15 @@ namespace Chat_Interfaces
         private MySqlConnection conexion;
         private MySqlCommand comando;
         private MySqlDataReader leer;
-
+        bool servidoract = true;
+        TcpListener servidor;
+        Thread hiloServidor;
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            servidoract = false;
+            servidor.Stop();
+            Application.Exit(); 
+        }
         public InicioSesion()
         {
             InitializeComponent();
@@ -32,6 +41,10 @@ namespace Chat_Interfaces
             textBoxPassword.UseSystemPasswordChar = true;
 
             conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
+            servidor= new TcpListener(System.Net.IPAddress.Any, 8080);
+            servidor.Start();
+            hiloServidor = new Thread(escuchcliente);
+            hiloServidor.Start();
         }
 
         //este metodo centra los controles dentro del panel
@@ -143,6 +156,31 @@ namespace Chat_Interfaces
             }
 
         }
+
+        private void escuchcliente()
+        {
+            while (servidoract)
+            {
+                try
+                {
+                    TcpClient cliente = servidor.AcceptTcpClient();
+                    NetworkStream stream = cliente.GetStream();
+
+                    byte[] buffer = Encoding.UTF8.GetBytes("Conexión exitosa con el servidor");
+                    stream.Write(buffer, 0, buffer.Length);
+
+                    cliente.Close();
+                }
+                catch (SocketException)
+                {
+                    if (!servidoract)
+                    {
+                        break;
+                    }    
+                }
+            }
+        }
+
     }
 }
 
@@ -169,3 +207,5 @@ public static class PasswordHelper
         return string.Equals(enteredHash, storedHash, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+

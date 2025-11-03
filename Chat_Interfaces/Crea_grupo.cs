@@ -8,6 +8,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Net.Sockets;
+using System.Threading;
 namespace Chat_Interfaces
 {
     public partial class Crea_grupo : Form
