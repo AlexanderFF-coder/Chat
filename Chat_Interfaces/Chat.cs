@@ -893,7 +893,7 @@ namespace Chat_Interfaces
                     using (MySqlCommand comando1 = new MySqlCommand("Select count(*) from miembros_grupos where id_grupo=@id and id_usuario=@idus", conexion))
                     {
                         comando1.Parameters.AddWithValue("@id", idob);
-                        comando1.Parameters.AddWithValue("@idus", _idUsuario); // USAMOS LA VARIABLE DE INSTANCIA
+                        comando1.Parameters.AddWithValue("@idus", _idUsuario); 
                         cont = Convert.ToInt32(comando1.ExecuteScalar());
                         if (cont == 0)
                         {

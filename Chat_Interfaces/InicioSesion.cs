@@ -22,13 +22,8 @@ namespace Chat_Interfaces
         private MySqlConnection conexion;
         private MySqlCommand comando;
         private MySqlDataReader leer;
-        bool servidoract = true;
-        TcpListener servidor;
-        Thread hiloServidor;
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            servidoract = false;
-            servidor.Stop();
             Application.Exit(); 
         }
         public InicioSesion()
@@ -39,12 +34,9 @@ namespace Chat_Interfaces
             panelLogin.Resize += (s, e) => CenterControlsInPanel();
             textBoxEmail.KeyDown += TextBoxEmail_KeyDown;
             textBoxPassword.UseSystemPasswordChar = true;
-
+            //Conectar al servidor en el puerto  8080
+            TcpClient cliente = new TcpClient("192.168.1.83", 8080);
             conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
-            servidor= new TcpListener(System.Net.IPAddress.Any, 8080);
-            servidor.Start();
-            hiloServidor = new Thread(escuchcliente);
-            hiloServidor.Start();
         }
 
         //este metodo centra los controles dentro del panel
@@ -157,29 +149,7 @@ namespace Chat_Interfaces
 
         }
 
-        private void escuchcliente()
-        {
-            while (servidoract)
-            {
-                try
-                {
-                    TcpClient cliente = servidor.AcceptTcpClient();
-                    NetworkStream stream = cliente.GetStream();
 
-                    byte[] buffer = Encoding.UTF8.GetBytes("Conexión exitosa con el servidor");
-                    stream.Write(buffer, 0, buffer.Length);
-
-                    cliente.Close();
-                }
-                catch (SocketException)
-                {
-                    if (!servidoract)
-                    {
-                        break;
-                    }    
-                }
-            }
-        }
 
     }
 }
