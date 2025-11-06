@@ -1,17 +1,18 @@
-﻿using System;
-using System.Security.Cryptography;
+﻿using Chat_Interfaces;
 using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Chat_Interfaces;
-using System.Net.Sockets;
-using System.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ListView;
 namespace Chat_Interfaces
 {
     public partial class InicioSesion : Form
@@ -22,8 +23,26 @@ namespace Chat_Interfaces
         private MySqlConnection conexion;
         private MySqlCommand comando;
         private MySqlDataReader leer;
+        // Variables para  server
+        TcpClient cliente;
+        NetworkStream flujo;
+        Thread hilo;
+        bool ejecutando = true;
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            ejecutando = false;
+            if (flujo != null)
+            {
+                flujo.Close();
+            }
+            if (cliente != null && cliente.Connected)
+            {
+                cliente.Close();
+            }
+            if (hilo != null && hilo.IsAlive)
+            {
+                hilo.Join(500);
+            }
             Application.Exit(); 
         }
         public InicioSesion()
@@ -35,7 +54,6 @@ namespace Chat_Interfaces
             textBoxEmail.KeyDown += TextBoxEmail_KeyDown;
             textBoxPassword.UseSystemPasswordChar = true;
             //Conectar al servidor en el puerto  8080
-            TcpClient cliente = new TcpClient("192.168.1.83", 8080);
             conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
         }
 
@@ -71,88 +89,95 @@ namespace Chat_Interfaces
         {
             Application.Exit();
         }
-
+        //Codigo modificado para que se conecte al servidor y verifique el usuario
         private void btnLogin_Click(object sender, EventArgs e)
         {
-            // Variables de alamcenamiento de datos
-            string email = textBoxEmail.Text;
-            string password = textBoxPassword.Text;
-
-            string hashedPassword = string.Empty;
-            string idUsuario = string.Empty;
-            string nombreUsuario = string.Empty;
-
-
+            cliente = new TcpClient("192.168.1.83", 8080);
+            flujo = cliente.GetStream();
+            //Manamos el email y la contraseña al servidor para verificar si el usuario existe separados por un |
             // Validar que los campos de correo y contraseña no estén vacíos
-            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(textBoxEmail.Text) || string.IsNullOrEmpty(textBoxPassword.Text))
             {
                 MessageBox.Show("Por favor, ingrese email y contraseña.", "Campos Vacíos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
-            // Bloque de Código para la consulta de la contraseña en la base de datos
-            try
+            string mensaje ="1|"+textBoxEmail.Text+"|"+textBoxPassword.Text;
+            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+            flujo.Write(datos, 0, datos.Length);
+            //Iniciamos el hilo para escuchar al servidor
+            if (hilo == null || !hilo.IsAlive)
             {
-                conexion.Open();
-                // Consulta de la contraseña para el email proporcionado
-                string query = "SELECT id, password, nombre FROM usuarios WHERE email = @email";
-
-                comando = new MySqlCommand(query, conexion);
-                comando.Parameters.AddWithValue("@email", email);
-
-                leer = comando.ExecuteReader();
-
-                if (leer.Read())
-                {
-                    //Si encuentra el usuario, obtiene los datos necesarios
-                    hashedPassword = leer["password"].ToString();
-                    // Capturamos el id y nombre del usuario
-                    idUsuario = leer["id"].ToString();
-                    nombreUsuario = leer["nombre"].ToString();
-                }
-                leer.Close(); //Cerrar lector
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al conectar con la base de datos: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            finally
-            {
-                if (conexion.State == ConnectionState.Open)
-                    conexion.Close();
-            }
-
-
-            if (string.IsNullOrEmpty(hashedPassword))
-            {
-                // Si no se encuentra el usuario
-                MessageBox.Show("Usuario no encontrado.", "Error de Inicio de Sesión", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            bool isPasswordValid = PasswordHelper.VerifyPassword(password, hashedPassword);
-
-            if (isPasswordValid)
-            {
-                // Contraseña correcta
-                MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                Chat chatW = new Chat(email, idUsuario, nombreUsuario);
-                chatW.Show();
-                this.Hide();
-            }
-            else
-            {
-                //Contraseña incorrecta
-                MessageBox.Show("Contraseña incorrecta. Inténtalo de nuevo.", "Error de Inicio de Sesión", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                hilo = new Thread(new ThreadStart(escuchaservidor));
+                hilo.IsBackground = true;
+                hilo.Start();
             }
 
         }
 
+        private void InicioSesion_Load(object sender, EventArgs e)
+        {
+           
+        }
 
+        private void escuchaservidor()
+        {
+            try
+            {
+                byte[] buffer = new byte[1024];
+                int bytesLeidos;
+
+                while (ejecutando && (bytesLeidos = flujo.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
+                    string[] partes = mensaje.Split('|');
+                    if (partes[0] == "0")
+                    {
+                        MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        Chat chatW = new Chat(partes[2], partes[1], partes[3]);
+                        chatW.Show();
+                        this.Hide();
+                    }
+                    else
+                    {
+                        if (partes[0] == "1")
+                        {
+                            MessageBox.Show("El usuario ya ha iniciado sesión en otro dispositivo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            continue;
+                        }
+                        else
+                        {
+                            if (partes[0] == "2")
+                            {
+                                MessageBox.Show("El usuario no encontrado", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                continue;
+                            }
+                            else
+                            {
+                                if (partes[0] == "3")
+                                {
+                                    MessageBox.Show("contrasena incorrecta", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (ejecutando)
+                {
+                    Console.WriteLine("Error en hilo: " + ex.Message);
+                }
+            }
+        }
 
     }
 }
+
+
+
+
 
 public static class PasswordHelper
 {
@@ -177,5 +202,4 @@ public static class PasswordHelper
         return string.Equals(enteredHash, storedHash, StringComparison.OrdinalIgnoreCase);
     }
 }
-
 

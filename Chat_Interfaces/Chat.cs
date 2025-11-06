@@ -18,6 +18,12 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
+        //Variables para  server
+        TcpClient cliente;
+        NetworkStream flujo;
+        Thread hilo;
+        bool ejecutando = true;
+
         //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
         private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
@@ -254,7 +260,7 @@ namespace Chat_Interfaces
 
         private void Chat_Load(object sender, EventArgs e)
         {
-
+          
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)

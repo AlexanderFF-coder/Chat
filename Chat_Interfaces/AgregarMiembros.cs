@@ -15,8 +15,13 @@ namespace Chat_Interfaces
 {
     public partial class AgregarMiembros : Form
     {
+        //Variables para  server
+        TcpClient cliente;
+        NetworkStream flujo;
+        Thread hilo;
+        bool ejecutando = true;
         //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
+        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
         // Variables para almacenar los IDs del grupo y del creador
         private int _idGrupo;
@@ -54,36 +59,32 @@ namespace Chat_Interfaces
         {
             checkedListBoxUsuarios.Items.Clear();
 
-            using (MySqlConnection conexion = new MySqlConnection(MYSQL_CONNECTION_STRING))
+            //Solicita los usuarios disponibles que no estan en el grupo
+            string mensaje = "lista_miembros|" + _idGrupo+"|" +_idCreador;
+            //flujo = ch.flujo; queda pendiente de ponerlo en chat
+            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+            flujo.Write(datos, 0, datos.Length);
+            //Lee la respuesta del servidor
+            byte[] buffer = new byte[4096];
+            int bytesLeidos = flujo.Read(buffer, 0, buffer.Length);
+            string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
+            string[] usuarios = respuesta.Split(';');
+            foreach (string usuario in usuarios)
             {
-                try
+                if (!string.IsNullOrWhiteSpace(usuario))
                 {
-                    // Query: Selecciona todos los usuarios cuyo ID NO sea el ID del creador
-                    string query = "SELECT id, nombre, email FROM usuarios WHERE id!=@idCreador AND id NOT IN (SELECT id_usuario FROM miembros_grupos WHERE id_grupo=@idGrupo)";
-                    conexion.Open();
-                    using (MySqlCommand comando = new MySqlCommand(query, conexion))
+                    string[] partes = usuario.Split('|');
+                    if (partes.Length == 2)
                     {
-                        comando.Parameters.AddWithValue("@idCreador", _idCreador);
-                        comando.Parameters.AddWithValue("@idGrupo", _idGrupo);
-
-                        using (MySqlDataReader leer = comando.ExecuteReader())
+                        int idUsuario = int.Parse(partes[0]);
+                        string nombreCompleto = partes[1];
+                        UsuarioItem item = new UsuarioItem
                         {
-                            while (leer.Read())
-                            {
-                                // Crea un objeto UsuarioItem para cada usuario encontrado
-                                UsuarioItem usuario = new UsuarioItem
-                                {
-                                    Id = leer.GetInt32("id"),
-                                    NombreCompleto = $"{leer.GetString("nombre")} ({leer.GetString("email")})"
-                                };
-                                checkedListBoxUsuarios.Items.Add(usuario);
-                            }
-                        }
+                            Id = idUsuario,
+                            NombreCompleto = nombreCompleto
+                        };
+                        checkedListBoxUsuarios.Items.Add(item);
                     }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Error al cargar usuarios: " + ex.Message, "Error DB", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -94,55 +95,6 @@ namespace Chat_Interfaces
             
         }
 
-        // Método para volver a la forma principal
-        private void VolverAFormularioChat()
-        {
-            string email = null;
-            string nombre = null;
-            // Paso 1: Obtener el email y el nombre del usuario creador (que está activo)
-            using (MySqlConnection conexion = new MySqlConnection(MYSQL_CONNECTION_STRING))
-            {
-                try
-                {
-                    conexion.Open();
-                    string query = "SELECT email, nombre FROM usuarios WHERE id = @idUsuario";
-                    using (MySqlCommand comando = new MySqlCommand(query, conexion))
-                    {
-                        comando.Parameters.AddWithValue("@idUsuario", _idCreador);
-                        using (MySqlDataReader leer = comando.ExecuteReader())
-                        {
-                            if (leer.Read())
-                            {
-                                email = leer.GetString("email");
-                                nombre = leer.GetString("nombre");
-                            }
-                        }
-                    }
-                    conexion.Close();
-                }
-                catch (Exception ex)
-                {
-                    // Mostramos el error, pero permitimos que el flujo continúe
-                    MessageBox.Show("Error al obtener datos del usuario: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-
-            // Paso 2: Crear el nuevo formulario Chat con los 3 parámetros requeridos
-            if (!string.IsNullOrEmpty(email))
-            {
-                // La navegación será exitosa
-                ch.Enabled = true;
-                this.Hide();
-            }
-            else
-            {
-                // La navegación falló (probablemente por el error capturado arriba), cerramos este formulario
-                MessageBox.Show("No se pudo recuperar la información del usuario para volver al Chat.", "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                this.Close();
-            }
-
-        }
 
         private void AgregarMiembros_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -163,50 +115,73 @@ namespace Chat_Interfaces
             // No es necesario verificar si Count == 0, porque el creador ya está en el grupo.
             // Si hay seleccionados, los insertamos.
 
-            // 2. Insertar múltiples miembros en la base de datos
-            using (MySqlConnection conexion = new MySqlConnection(MYSQL_CONNECTION_STRING))
-            {
-                try
-                {
-                    conexion.Open();
-                    string query = "INSERT INTO miembros_grupos (id_usuario, id_grupo) VALUES (@idu, @idg)";
+            //Manda la lista de ids al servidor para agregarlos al grupo
+            string mensaje = "agregar_miembros|" + idsSeleccionados.Count+"|" + _idGrupo + " | ";
+            mensaje += string.Join(",", idsSeleccionados);
+            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+            flujo.Write(datos, 0, datos.Length);
+            //Lee la respuesta del servidor
+            byte[] buffer = new byte[4096];
+            int bytesLeidos = flujo.Read(buffer, 0, buffer.Length);
+            string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
+            MessageBox.Show(respuesta, "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    using (MySqlCommand comando = new MySqlCommand(query, conexion))
-                    {
-                        // Preparar los parámetros fijos (solo el ID del grupo)
-                        comando.Parameters.Add("@idg", MySqlDbType.Int32).Value = _idGrupo;
-                        comando.Parameters.Add("@idu", MySqlDbType.Int32); // Este se actualizará en el loop
 
-                        int miembrosAgregados = 0;
-                        foreach (int idUsuario in idsSeleccionados)
-                        {
-                            // Actualizar el valor del parámetro del usuario
-                            comando.Parameters["@idu"].Value = idUsuario;
-                            comando.ExecuteNonQuery();
-                            miembrosAgregados++;
-                        }
-
-                        // Solo mostramos un mensaje de éxito si realmente se agregaron miembros
-                        if (miembrosAgregados > 0)
-                        {
-                            MessageBox.Show($"Se agregaron {miembrosAgregados} miembros al grupo.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Si falla el insert, igual intentamos regresar al chat
-                    MessageBox.Show("Error al insertar miembros: " + ex.Message, "Error DB", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-
-            // 3. Volver al formulario Chat con los datos del creador.
-            VolverAFormularioChat();
+            
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            VolverAFormularioChat();
+            this.Close();
+            ch.Enabled = true;
+        }
+
+        private void escuchaservidor()
+        {
+            try
+            {
+                byte[] buffer = new byte[1024];
+                int bytesLeidos;
+
+                while (ejecutando && (bytesLeidos = flujo.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
+                    string[] partes = mensaje.Split('|');
+                    this.Invoke((Action)(() =>
+                    {
+                        if (partes[0] == "0")
+                        {
+                            MessageBox.Show("Grupo creado", "dime los miembros que quieres agregar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            int idGrupo = int.Parse(partes[1]);
+                            int idusuario = _idCreador;
+                            AgregarMiembros am = new AgregarMiembros(idGrupo, idusuario, ch);
+                            am.Show();
+                            this.Hide();
+                        }
+                        else
+                        {
+                            if (partes[0] == "8")
+                            {
+                                MessageBox.Show("Error al crear el grupo", "Intenta de nuevo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                    }));
+                }
+            }
+            catch (Exception ex)
+            {
+                if (ejecutando)
+                {
+                    Console.WriteLine("Error en hilo: " + ex.Message);
+                }
+            }
+            finally
+            {
+                //Cerrar el flujo y el cliente al finalizar
+                flujo.Close();
+                cliente.Close();
+            }
+
         }
     }
 }
