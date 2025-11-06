@@ -20,9 +20,7 @@ namespace Chat_Interfaces
         NetworkStream flujo;
         Thread hilo;
         bool ejecutando = true;
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
-
+     
         // Variables para almacenar los IDs del grupo y del creador
         private int _idGrupo;
         private int _idCreador;
@@ -61,7 +59,7 @@ namespace Chat_Interfaces
 
             //Solicita los usuarios disponibles que no estan en el grupo
             string mensaje = "lista_miembros|" + _idGrupo+"|" +_idCreador;
-            //flujo = ch.flujo; queda pendiente de ponerlo en chat
+            flujo = ch.flujo;
             byte[] datos = Encoding.UTF8.GetBytes(mensaje);
             flujo.Write(datos, 0, datos.Length);
             //Lee la respuesta del servidor
@@ -116,8 +114,7 @@ namespace Chat_Interfaces
             // Si hay seleccionados, los insertamos.
 
             //Manda la lista de ids al servidor para agregarlos al grupo
-            string mensaje = "agregar_miembros|" + idsSeleccionados.Count+"|" + _idGrupo + " | ";
-            mensaje += string.Join(",", idsSeleccionados);
+            string mensaje = "agregar_miembros|" + idsSeleccionados.Count + "|" + _idGrupo + "|" + string.Join(",", idsSeleccionados);
             byte[] datos = Encoding.UTF8.GetBytes(mensaje);
             flujo.Write(datos, 0, datos.Length);
             //Lee la respuesta del servidor
