@@ -1,27 +1,22 @@
-﻿using System;
-using System.Security.Cryptography;
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Text;
+using System.IO;
 using System.Linq;
+using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Net.Sockets;
-using System.Threading;
 namespace Chat_Interfaces
 {
     public partial class Registrarse : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
-
-        private MySqlConnection conexion;
-        private MySqlCommand comando;
-        private MySqlDataReader leer;
         //Variables para server
         TcpClient cliente;
         NetworkStream flujo;
@@ -37,8 +32,6 @@ namespace Chat_Interfaces
             panelRegister.Resize += (s, e) => CenterControlsInPanel();
             textBoxPassw.UseSystemPasswordChar = true;
             textBoxConfirmPassw.UseSystemPasswordChar = true;
-
-           // conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
         }
 
         private void CenterControlsInPanel()
@@ -82,20 +75,17 @@ namespace Chat_Interfaces
             string pass = textBoxPassw.Text;
             string confirmPass = textBoxConfirmPassw.Text;
 
-            // VALIDACIONES BÁSICAS
+            //Checa todos los escenarios
             if (string.IsNullOrEmpty(nombre) || string.IsNullOrEmpty(email) || string.IsNullOrEmpty(pass) || string.IsNullOrEmpty(confirmPass))
             {
-                MessageBox.Show("Todos los campos son obligatorios",
-                        "Error de Validación",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
+                MessageBox.Show("Todos los campos son obligatorios", "Error de Validación",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                 textBoxNombre.Focus();
                 return;
             }
 
             if (pass != confirmPass)
             {
-                MessageBox.Show("Las contraseñas no coinciden. Por favor, inténtalo de nuevo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Las contraseñas no coinciden.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 textBoxPassw.Clear();
                 textBoxConfirmPassw.Clear();
                 textBoxPassw.Focus();
@@ -150,12 +140,9 @@ namespace Chat_Interfaces
                         if (partes[0] == "4")
                         {
                             MessageBox.Show("Usuario registrado", "Mensaje", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            // Establecer bandera como exito
                             registroExitoso = true;
-                            // Redireccionar al formulario de inicio de sesión
                             InicioSesion ventanaSes = new InicioSesion();
                             ventanaSes.Show();
-                            //Cerrar esta forma
                             this.Close();
                         }
                         else
@@ -172,6 +159,17 @@ namespace Chat_Interfaces
                                 }
                             }
                         }
+                    }));
+                }
+            }
+            //Se agrego un catch por si se desconecta el servidor
+            catch (IOException)
+            {
+                if (ejecutando)
+                {
+                    this.Invoke((Action)(() =>
+                    {
+                        MessageBox.Show("Se perdió la conexión con el servidor.", "Desconectado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }));
                 }
             }

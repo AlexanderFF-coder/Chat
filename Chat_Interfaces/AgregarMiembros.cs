@@ -5,126 +5,135 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ListView;
-using System.Net.Sockets;
-using System.Threading;
+
 namespace Chat_Interfaces
 {
     public partial class AgregarMiembros : Form
     {
-        //Variables para  server
-        TcpClient cliente;
-        NetworkStream flujo;
-        Thread hilo;
-        bool ejecutando = true;
-     
-        // Variables para almacenar los IDs del grupo y del creador
         private int _idGrupo;
         private int _idCreador;
-        Chat ch;
-        // Clase simple para guardar el ID y el Nombre del usuario
+        private Chat ch;
+
         private class UsuarioItem
         {
             public int Id { get; set; }
             public string NombreCompleto { get; set; }
-
-            public override string ToString()
-            {
-                // Esto es lo que se mostrará en el CheckedListBox
-                return NombreCompleto;
-            }
+            public override string ToString() => NombreCompleto;
         }
 
-        // El constructor ahora recibe el ID del grupo y el ID del usuario creador
-        public AgregarMiembros(int idGrupo, int idCreador,Chat ch)
+        public AgregarMiembros(int idGrupo, int idCreador, Chat ch)
         {
             InitializeComponent();
             _idGrupo = idGrupo;
             _idCreador = idCreador;
-            this.Text = "Agregar Miembros al Grupo ID: " + idGrupo; // Título de la ventana
             this.ch = ch;
-            // Configurar el CheckedListBox para que muestre el nombre y guarde el ID
+            this.Text = "Agregar Miembros al Grupo ID: " + idGrupo;
+
             checkedListBoxUsuarios.DisplayMember = "NombreCompleto";
             checkedListBoxUsuarios.ValueMember = "Id";
 
-            CargarUsuarios();
+            //Cargar usuarios  usando un metodo asincrono que no bloquee la interfaz https://we-school.es/como-manejar-operaciones-asincronas-en-c/
+            _ = CargarUsuariosAsync();
         }
-
-        private void CargarUsuarios()
+        //Cargamos usuarios
+        private async Task CargarUsuariosAsync()
         {
             checkedListBoxUsuarios.Items.Clear();
 
-            //Solicita los usuarios disponibles que no estan en el grupo
-            string mensaje = "lista_miembros|" + _idGrupo+"|" +_idCreador;
-            flujo = ch.flujo;
-            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-            flujo.Write(datos, 0, datos.Length);
-            //Lee la respuesta del servidor
-            byte[] buffer = new byte[4096];
-            int bytesLeidos = flujo.Read(buffer, 0, buffer.Length);
-            string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
-            string[] usuarios = respuesta.Split(';');
-            foreach (string usuario in usuarios)
+            string mensaje = "lista_miembros|"+_idGrupo+"|"+_idCreador;
+            try
             {
-                if (!string.IsNullOrWhiteSpace(usuario))
+                using (TcpClient cliente = new TcpClient())
                 {
-                    string[] partes = usuario.Split('|');
-                    if (partes.Length == 2)
+                    await cliente.ConnectAsync("192.168.1.83", 8080);
+
+                    using (NetworkStream flujo = cliente.GetStream())
                     {
-                        int idUsuario = int.Parse(partes[0]);
-                        string nombreCompleto = partes[1];
-                        UsuarioItem item = new UsuarioItem
+                        byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+                        await flujo.WriteAsync(datos, 0, datos.Length);
+                        await flujo.FlushAsync(); 
+
+                        //Leer respuesta completa
+                        byte[] buffer = new byte[8192];
+                        int bytesLeidos = await flujo.ReadAsync(buffer, 0, buffer.Length);
+                        string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
+
+                        //Procesar lista
+                        string[] usuarios = respuesta.Split(';');
+
+                        this.Invoke((Action)(() =>
                         {
-                            Id = idUsuario,
-                            NombreCompleto = nombreCompleto
-                        };
-                        checkedListBoxUsuarios.Items.Add(item);
+                            foreach (string usuario in usuarios)
+                            {
+                                string[] partes = usuario.Split('|');
+                                if (partes.Length >= 4 && partes[0] == "usuario_lista")
+                                {
+                                    int idUsuario = int.Parse(partes[1]);
+                                    string nombre = partes[2].Trim();
+                                    string email = partes[3].Trim();
+                                    //Agregar a la lista
+                                    checkedListBoxUsuarios.Items.Add(new UsuarioItem { Id = idUsuario, NombreCompleto = $"{nombre} ({email})" });
+                                }
+                            }
+
+                            if (checkedListBoxUsuarios.Items.Count == 0)
+                            {
+                                MessageBox.Show("No hay usuarios disponibles para agregar al grupo.");
+                            }
+                        }));
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar usuarios: " + ex.Message);
+            }
         }
-
-        // Este método maneja el botón "Finalizar" o "Agregar"
-        private void btnFinalizar_Click(object sender, EventArgs e)
-        {
-            
-        }
-
-
-        private void AgregarMiembros_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            //Activa el form chat y cierra esteform
-            ch.Enabled = true;
-        }
-
-        private void button1_Click(object sender, EventArgs e)
+        //Agregar a miembros seleccionados
+        private async void button1_Click(object sender, EventArgs e)
         {
             List<int> idsSeleccionados = new List<int>();
-
-            // 1. Recopilar IDs de los usuarios seleccionados
             foreach (UsuarioItem item in checkedListBoxUsuarios.CheckedItems)
             {
                 idsSeleccionados.Add(item.Id);
             }
 
-            // No es necesario verificar si Count == 0, porque el creador ya está en el grupo.
-            // Si hay seleccionados, los insertamos.
+            if (idsSeleccionados.Count == 0)
+            {
+                //Manda un mensaje de agregar un usuario
+                MessageBox.Show("Selecciona al menos un usuario ", "mensaje",MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string mensaje = "agregar_miembros|"+idsSeleccionados.Count+"|"+_idGrupo+"|"+string.Join(",", idsSeleccionados);
+            try
+            {
+                using (TcpClient cliente = new TcpClient())
+                {
+                    await cliente.ConnectAsync("192.168.1.83", 8080);
+                    using (NetworkStream flujo = cliente.GetStream())
+                    {
+                        byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+                        await flujo.WriteAsync(datos, 0, datos.Length);
 
-            //Manda la lista de ids al servidor para agregarlos al grupo
-            string mensaje = "agregar_miembros|" + idsSeleccionados.Count + "|" + _idGrupo + "|" + string.Join(",", idsSeleccionados);
-            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-            flujo.Write(datos, 0, datos.Length);
-            //Lee la respuesta del servidor
-            byte[] buffer = new byte[4096];
-            int bytesLeidos = flujo.Read(buffer, 0, buffer.Length);
-            string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
-            MessageBox.Show(respuesta, "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        byte[] buffer = new byte[4096];
+                        int bytesLeidos = await flujo.ReadAsync(buffer, 0, buffer.Length);
+                        string respuesta = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
 
+                        MessageBox.Show(respuesta, "Usuarios agregados", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
 
-            
+                this.Close();
+                ch.Enabled = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al agregar usuarios: " + ex.Message);
+            }
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -133,52 +142,9 @@ namespace Chat_Interfaces
             ch.Enabled = true;
         }
 
-        private void escuchaservidor()
+        private void AgregarMiembros_FormClosing(object sender, FormClosingEventArgs e)
         {
-            try
-            {
-                byte[] buffer = new byte[1024];
-                int bytesLeidos;
-
-                while (ejecutando && (bytesLeidos = flujo.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
-                    string[] partes = mensaje.Split('|');
-                    this.Invoke((Action)(() =>
-                    {
-                        if (partes[0] == "0")
-                        {
-                            MessageBox.Show("Grupo creado", "dime los miembros que quieres agregar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            int idGrupo = int.Parse(partes[1]);
-                            int idusuario = _idCreador;
-                            AgregarMiembros am = new AgregarMiembros(idGrupo, idusuario, ch);
-                            am.Show();
-                            this.Hide();
-                        }
-                        else
-                        {
-                            if (partes[0] == "8")
-                            {
-                                MessageBox.Show("Error al crear el grupo", "Intenta de nuevo", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
-                        }
-                    }));
-                }
-            }
-            catch (Exception ex)
-            {
-                if (ejecutando)
-                {
-                    Console.WriteLine("Error en hilo: " + ex.Message);
-                }
-            }
-            finally
-            {
-                //Cerrar el flujo y el cliente al finalizar
-                flujo.Close();
-                cliente.Close();
-            }
-
+            ch.Enabled = true;
         }
     }
 }

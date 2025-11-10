@@ -1,29 +1,19 @@
-﻿using Chat_Interfaces;
-using MySql.Data.MySqlClient;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ListView;
 namespace Chat_Interfaces
 {
     public partial class InicioSesion : Form
     {
-        //private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=test;Uid=Alex;Pwd=12345";
-        private const string MYSQL_CONNECTION_STRING = "Server = localhost; Port=3306;Database=chat;Uid=root;Pwd=Alex";
 
-        private MySqlConnection conexion;
-        private MySqlCommand comando;
-        private MySqlDataReader leer;
-        // Variables para  server
         TcpClient cliente;
         NetworkStream flujo;
         Thread hilo;
@@ -53,8 +43,6 @@ namespace Chat_Interfaces
             panelLogin.Resize += (s, e) => CenterControlsInPanel();
             textBoxEmail.KeyDown += TextBoxEmail_KeyDown;
             textBoxPassword.UseSystemPasswordChar = true;
-            //Conectar al servidor en el puerto  8080
-            conexion = new MySqlConnection(MYSQL_CONNECTION_STRING);
         }
 
         //este metodo centra los controles dentro del panel
@@ -92,24 +80,31 @@ namespace Chat_Interfaces
         //Codigo modificado para que se conecte al servidor y verifique el usuario
         private void btnLogin_Click(object sender, EventArgs e)
         {
-            cliente = new TcpClient("192.168.1.83", 8080);
-            flujo = cliente.GetStream();
-            //Manamos el email y la contraseña al servidor para verificar si el usuario existe separados por un |
-            // Validar que los campos de correo y contraseña no estén vacíos
-            if (string.IsNullOrEmpty(textBoxEmail.Text) || string.IsNullOrEmpty(textBoxPassword.Text))
+            try
             {
-                MessageBox.Show("Por favor, ingrese email y contraseña.", "Campos Vacíos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                cliente = new TcpClient("192.168.1.83", 8080);
+                flujo = cliente.GetStream();
+
+                if (string.IsNullOrEmpty(textBoxEmail.Text) || string.IsNullOrEmpty(textBoxPassword.Text))
+                {
+                    MessageBox.Show("Por favor, ingrese email y contraseña.", "Campos Vacíos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string mensaje = "1|" + textBoxEmail.Text + "|" + textBoxPassword.Text;
+                byte[] datos = Encoding.UTF8.GetBytes(mensaje);
+                flujo.Write(datos, 0, datos.Length);
+
+                if (hilo == null || !hilo.IsAlive)
+                {
+                    hilo = new Thread(() => escuchaservidor());
+                    hilo.IsBackground = true;
+                    hilo.Start();
+                }
             }
-            string mensaje ="1|"+textBoxEmail.Text+"|"+textBoxPassword.Text;
-            byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-            flujo.Write(datos, 0, datos.Length);
-            //Iniciamos el hilo para escuchar al servidor
-            if (hilo == null || !hilo.IsAlive)
+            catch (Exception ex)
             {
-                hilo = new Thread(new ThreadStart(escuchaservidor));
-                hilo.IsBackground = true;
-                hilo.Start();
+                MessageBox.Show("Error al conectar con el servidor: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
         }
@@ -130,44 +125,65 @@ namespace Chat_Interfaces
                 {
                     string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
                     string[] partes = mensaje.Split('|');
+
                     if (partes[0] == "0")
                     {
-                        MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        Chat chatW = new Chat(partes[2], partes[1], partes[3]);
-                        chatW.Show();
-                        this.Hide();
+                        //Inicio de sesión
+                        this.Invoke((Action)(() =>
+                        {
+                            MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            Chat chatW = new Chat(partes[2], partes[1], partes[3]);
+                            //Cerrar la conexion al servidor de inicio de sesion
+                            ejecutando = false;
+                            flujo.Close();
+                            cliente.Close();
+                            chatW.Show();
+                            this.Hide();
+                        }));
                     }
-                    else
+                    else if (partes[0] == "1")
                     {
-                        if (partes[0] == "1")
+                        this.Invoke((Action)(() =>
                         {
                             MessageBox.Show("El usuario ya ha iniciado sesión en otro dispositivo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            continue;
-                        }
-                        else
+                        }));
+                    }
+                    else if (partes[0] == "2")
+                    {
+                        this.Invoke((Action)(() =>
                         {
-                            if (partes[0] == "2")
-                            {
-                                MessageBox.Show("El usuario no encontrado", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                continue;
-                            }
-                            else
-                            {
-                                if (partes[0] == "3")
-                                {
-                                    MessageBox.Show("contrasena incorrecta", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                    continue;
-                                }
-                            }
-                        }
+                            MessageBox.Show("El usuario no fue encontrado.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
+                    }
+                    else if (partes[0] == "3")
+                    {
+                        this.Invoke((Action)(() =>
+                        {
+                            MessageBox.Show("Contraseña incorrecta.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
                     }
                 }
             }
+            //Se agrego un catch por si se desconecta el servidor
+            catch (IOException)
+            {
+                if (ejecutando)
+                {
+                    this.Invoke((Action)(() =>
+                    {
+                        MessageBox.Show("Se perdió la conexión con el servidor.", "Desconectado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }));
+                }
+            }
+            //Se pone un catch  por si hay otro error
             catch (Exception ex)
             {
                 if (ejecutando)
                 {
-                    Console.WriteLine("Error en hilo: " + ex.Message);
+                    this.Invoke((Action)(() =>
+                    {
+                        MessageBox.Show("Error en hilo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
                 }
             }
         }

@@ -14,25 +14,17 @@ namespace Chat_Interfaces
 {
     public partial class Crea_grupo : Form
     {
-        MySqlConnection conexion;
-        MySqlCommand comando;
-        MySqlDataReader leer;
-        MySqlCommand comando1;
-        MySqlDataReader leer1;
         //Variables para  server
         TcpClient cliente;
         NetworkStream flujo;
         Thread hilo;
         bool ejecutando = true;
-        // CAMBIO 1: Eliminamos la dependencia estática y la reemplazamos por una variable de instancia
         private string _idUsuario;
         public Chat ch;
-        // CAMBIO 2: El constructor ahora recibe el ID del usuario creador
         public Crea_grupo(string idUsuario, Chat ch)
         {
             InitializeComponent();
             this.ch = ch;
-            // Asignamos el ID del usuario
             _idUsuario = idUsuario;
         }
 
@@ -52,20 +44,20 @@ namespace Chat_Interfaces
 
             try
             {
-                // Conexión al servidor
+                //Conexión al servidor
                 cliente = new TcpClient("192.168.1.83", 8080);
                 flujo = cliente.GetStream();
 
-                // Generar número aleatorio para la clave del grupo (cliente lo genera)
+                //Generar número aleatorio para la clave del grupo 
                 Random r = new Random();
-                int rand = r.Next(1, 1000000);
+                int rand = (int)(DateTime.Now.Ticks % 10000);
 
-                // Enviar mensaje de creación de grupo: 3|<clave>|<nombre>|<id_usuario>
+                //Enviar mensaje de que se creo el grupo con los datos
                 string mensaje = "3|"+rand+"|"+nombre+"|"+ _idUsuario;
                 byte[] datos = Encoding.UTF8.GetBytes(mensaje);
                 flujo.Write(datos, 0, datos.Length);
 
-                // Iniciar hilo para escuchar respuesta del servidor
+                //Espera respuesta
                 hilo = new Thread(new ThreadStart(escuchaservidor));
                 hilo.IsBackground = true;
                 hilo.Start();
@@ -79,10 +71,19 @@ namespace Chat_Interfaces
 
         private void Crea_grupo_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //Abilitamos el form de chat
             ejecutando = false;
-            flujo.Close();
-            cliente.Close();
+            if (flujo != null)
+            {
+               flujo.Close();
+            }
+            if (cliente != null && cliente.Connected)
+            {
+                cliente.Close();
+            }
+            if (hilo != null && hilo.IsAlive)
+            {
+              hilo.Join(500);
+            }
             ch.Enabled = true;
         }
 
@@ -97,25 +98,34 @@ namespace Chat_Interfaces
                 {
                     string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
                     string[] partes = mensaje.Split('|');
-                    this.Invoke((Action)(() =>
+
+                    if (partes.Length > 0)
                     {
                         if (partes[0] == "7")
                         {
-                            MessageBox.Show("Grupo creado", "dime los miembros que quieres agregar", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            int idGrupo = int.Parse(partes[1]);
-                            int idusuario = int.Parse(_idUsuario);
-                            AgregarMiembros am = new AgregarMiembros(idGrupo, idusuario, ch);
-                            am.Show();
-                            this.Hide();
+                            this.Invoke((Action)(() =>
+                            {
+                                int idGrupo = int.Parse(partes[1]);
+                                if (int.TryParse(_idUsuario, out int idusuario))
+                                {
+                                    AgregarMiembros am = new AgregarMiembros(idGrupo, idusuario, ch);
+                                    am.Show();
+                                    this.Hide();
+                                }
+                                else
+                                {
+                                    MessageBox.Show("id de usuario inválido. No se puede crear el grupo.");
+                                }
+                            }));
                         }
-                        else
+                        else if (partes[0] == "8")
                         {
-                            if (partes[0] == "8")
+                            this.Invoke((Action)(() =>
                             {
                                 MessageBox.Show("Error al crear el grupo", "Intenta de nuevo", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
+                            }));
                         }
-                    }));
+                    }
                 }
             }
             catch (Exception ex)
@@ -127,11 +137,15 @@ namespace Chat_Interfaces
             }
             finally
             {
-                //Cerrar el flujo y el cliente al finalizar
-                flujo.Close();
-                cliente.Close();
+                try
+                {
+                    flujo.Close();
+                    cliente.Close();
+                }
+                catch 
+                { 
+                }
             }
-
         }
     }
 }
