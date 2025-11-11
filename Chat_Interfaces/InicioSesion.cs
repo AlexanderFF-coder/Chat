@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 namespace Chat_Interfaces
 {
@@ -77,7 +78,6 @@ namespace Chat_Interfaces
         {
             Application.Exit();
         }
-        //Codigo modificado para que se conecte al servidor y verifique el usuario
         private void btnLogin_Click(object sender, EventArgs e)
         {
             try
@@ -97,16 +97,13 @@ namespace Chat_Interfaces
 
                 if (hilo == null || !hilo.IsAlive)
                 {
-                    hilo = new Thread(() => escuchaservidor());
-                    hilo.IsBackground = true;
-                    hilo.Start();
+                    Task.Run(() => escuchaservidor());
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error al conectar con el servidor: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
         }
 
         private void InicioSesion_Load(object sender, EventArgs e)
@@ -114,79 +111,97 @@ namespace Chat_Interfaces
            
         }
 
-        private void escuchaservidor()
+        private async Task escuchaservidor()
         {
             try
             {
                 byte[] buffer = new byte[1024];
                 int bytesLeidos;
 
-                while (ejecutando && (bytesLeidos = flujo.Read(buffer, 0, buffer.Length)) > 0)
+                while (ejecutando && (bytesLeidos = await flujo.ReadAsync(buffer, 0, buffer.Length)) > 0)
                 {
                     string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
                     string[] partes = mensaje.Split('|');
 
                     if (partes[0] == "0")
                     {
-                        //Inicio de sesión
-                        this.Invoke((Action)(() =>
+                        await this.checasyn(() =>
                         {
-                            MessageBox.Show("¡Inicio de sesión exitoso!", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            MessageBox.Show("Inicio de sesión ", "Bienvenido", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             Chat chatW = new Chat(partes[2], partes[1], partes[3]);
-                            //Cerrar la conexion al servidor de inicio de sesion
+
                             ejecutando = false;
                             flujo.Close();
                             cliente.Close();
+
                             chatW.Show();
                             this.Hide();
-                        }));
+                        });
                     }
                     else if (partes[0] == "1")
                     {
-                        this.Invoke((Action)(() =>
+                        await this.checasyn(() =>
                         {
                             MessageBox.Show("El usuario ya ha iniciado sesión en otro dispositivo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }));
+                        });
                     }
                     else if (partes[0] == "2")
                     {
-                        this.Invoke((Action)(() =>
+                        await this.checasyn(() =>
                         {
                             MessageBox.Show("El usuario no fue encontrado.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }));
+                        });
                     }
                     else if (partes[0] == "3")
                     {
-                        this.Invoke((Action)(() =>
+                        await this.checasyn(() =>
                         {
                             MessageBox.Show("Contraseña incorrecta.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }));
+                        });
                     }
                 }
             }
-            //Se agrego un catch por si se desconecta el servidor
             catch (IOException)
             {
                 if (ejecutando)
                 {
-                    this.Invoke((Action)(() =>
+                    await this.checasyn(() =>
                     {
                         MessageBox.Show("Se perdió la conexión con el servidor.", "Desconectado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }));
+                    });
                 }
             }
-            //Se pone un catch  por si hay otro error
             catch (Exception ex)
             {
                 if (ejecutando)
                 {
-                    this.Invoke((Action)(() =>
+                    await this.checasyn(() =>
                     {
                         MessageBox.Show("Error en hilo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }));
+                    });
                 }
             }
         }
+
+        //Checa si es aync
+        private Task checasyn(Action action)
+        {
+            var tarea = new TaskCompletionSource<object>();
+            this.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    action();
+                    tarea.SetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    tarea.SetException(ex);
+                }
+            }));
+            return tarea.Task;
+        }
+
 
     }
 }

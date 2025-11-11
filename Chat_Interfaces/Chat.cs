@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -7,11 +8,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
-using System.Windows.Forms;
-using MySql.Data.MySqlClient;
 //Se usa para manejar emojis
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Linq;
+
 namespace Chat_Interfaces
 {
     public partial class Chat : Form
@@ -100,12 +103,6 @@ namespace Chat_Interfaces
             };
             panelMenciones.Controls.Add(listBoxUsuarios);
 
-            //Iniciar hilo escucha si se proporcionó flujo
-            if (flujo != null)
-            {
-                escuchahilo();
-            }
-
             textBox2.Font = new Font("Segoe UI Emoji", 9f);
 
             //Mostrar nombre de sesión en el título
@@ -141,20 +138,6 @@ namespace Chat_Interfaces
             }
         }
 
-
-        private void escuchahilo()
-        {
-            if (hilo == null || !hilo.IsAlive)
-            {
-                ejecutando = true;
-                hilo = new Thread(escuchaservidor);
-                if (hilo.IsBackground == false)
-                {
-                    hilo.IsBackground = true;
-                }
-                hilo.Start();
-            }
-        }
 
 
         private void cargarEmojis()
@@ -201,9 +184,7 @@ namespace Chat_Interfaces
                 cliente = new TcpClient();
                 await cliente.ConnectAsync("192.168.1.83", 8080);
                 flujo = cliente.GetStream();
-                hilo = new Thread(escuchaservidor);
-                hilo.IsBackground = true;
-                hilo.Start();
+                _ = escuchaservidor();
             }
             catch (Exception ex)
             {
@@ -274,6 +255,7 @@ namespace Chat_Interfaces
                 {
                     respuesta(mensaje);
                 }
+                mostrartodosmensajes(nombreg);
             }
             catch (Exception ex)
             {
@@ -396,12 +378,12 @@ namespace Chat_Interfaces
             }
 
             string nombreGrupo = listBox1.SelectedItem.ToString();
-            string mensaje = "ObtenerIDGrupo|" + nombreGrupo;
+            string mensaje = "Obtenerclave|" + nombreGrupo;
 
             string res = respuesta(mensaje);
             if (string.IsNullOrEmpty(res))
             {
-                MessageBox.Show("error al obtener ID del grupo");
+                MessageBox.Show("error al obtener clave del grupo");
                 return;
             }
 
@@ -416,7 +398,7 @@ namespace Chat_Interfaces
             //Se usa out para indicar que es una parametro que se pasara
             if (!int.TryParse(partes[1],out idg))
             {
-                MessageBox.Show("id de grupo inválido.");
+                MessageBox.Show("clave de grupo inválido.");
                 return;
             }
             //Abrir formulario para agregar miembros
@@ -462,7 +444,9 @@ namespace Chat_Interfaces
             if (e.KeyCode == Keys.Back)
             {
                 if (textBox2.SelectionStart == 0 || textBox2.TextLength == 0)
+                {
                     return;
+                }
 
                 borrando = true;
 
@@ -480,8 +464,9 @@ namespace Chat_Interfaces
                     while (cont < 2 && respaldo.Length > 0)
                     {
                         if (respaldo[respaldo.Length - 1] == ':')
+                        {
                             cont++;
-
+                        }
                         respaldo = respaldo.Remove(respaldo.Length - 1, 1);
                     }
 
@@ -546,69 +531,118 @@ namespace Chat_Interfaces
 
         }
 
-        private void escuchaservidor()
+        private async Task escuchaservidor()
         {
             byte[] buffer = new byte[4096];
             int bytesLeidos;
+            StringBuilder juntar = new StringBuilder();
 
             try
             {
-                while (ejecutando && (bytesLeidos = flujo.Read(buffer, 0, buffer.Length)) > 0)
+                while (ejecutando && cliente != null && cliente.Connected)
                 {
-                    string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
-                    string[] partes = mensaje.Split('|');
-
-                    //Nuevo mensaje
-                    if (partes[0] == "nuevo_mensaje")
+                    bytesLeidos = await flujo.ReadAsync(buffer, 0, buffer.Length);
+                    if (bytesLeidos == 0)
                     {
-                        string idGrupo = partes[1];
-                        string usuario = partes[2];
-                        string contenido = partes[3];
+                        break;
+                    }
+                    string recibido = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
+                    juntar.Append(recibido);
 
-                        this.Invoke((Action)(() =>
-                        {
-                            mostrarmensajep(new List<(string, string, DateTime)>{ (usuario, contenido, DateTime.Now)});
-                        }));
+                    string[] mensajes = juntar.ToString().Split('\n');
+
+                    for (int i = 0; i < mensajes.Length - 1; i++)
+                    {
+                        await procesarmensaje(mensajes[i]);
                     }
 
-                    //Confirmación de guardado de mensaje
-                    else if (partes[0] == "5" && partes.Length > 1 && partes[1] == "OK")
-                    {
-                        Console.WriteLine("Mensaje guardado correctamente en el servidor.");
-                    }
-
-                    //Lista de grupos
-                    else if (partes[0] == "1")
-                    {
-                        string nombreGrupo = partes[1];
-                        listBox1.Invoke((Action)(() =>
-                        {
-                            listBox1.Items.Add(nombreGrupo);
-                            listBox1.Items.Add("--------------------------------------");
-                        }));
-                    }
-                    else
-                    {
-                        Console.WriteLine("Mensaje no reconocido del servidor: " + mensaje);
-                    }
+                    juntar.Clear();
+                    juntar.Append(mensajes[mensajes.Length - 1]);
                 }
             }
             catch (IOException ex)
             {
-                Console.WriteLine("Conexión perdida: " + ex.Message);
                 if (ejecutando)
                 {
-                    this.Invoke((Action)(() =>
+                    await this.checasync(() =>
                     {
-                        MessageBox.Show("Se perdió la conexión con el servidor.");
-                    }));
+                        MessageBox.Show("Se perdió la conexión con el servidor.\n" + ex.Message);
+                    });
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("error en hilo de escucha: " + ex.Message);
+                Console.WriteLine("Error en escucha: " + ex.Message);
             }
         }
+        //Funcion de checa mensje posible
+        private async Task procesarmensaje(string mensaje)
+        {
+            string[] partes = mensaje.Split('|');
+            if (partes.Length == 0) return;
+
+            switch (partes[0])
+            {
+                case "nuevo_mensaje":
+                    if (partes.Length >= 4)
+                    {
+                        string usuario = partes[2];
+                        string contenido = partes[3];
+                        await this.checasync(() =>
+                        {
+                            mostrarmensajep(new List<(string, string, DateTime)>{(usuario, contenido, DateTime.Now)});
+                        });
+                    }
+                    break;
+                case "5":
+                    if (partes.Length > 1 && partes[1] == "OK")
+                    {
+                        Console.WriteLine("Mensaje guardado correctamente en el servidor.");
+                    }
+                    break;
+
+                case "1":
+                    if (partes.Length >= 2)
+                    {
+                        string nombreGrupo = partes[1];
+                        await this.checasync(() =>
+                        {
+                            listBox1.Items.Add(nombreGrupo);
+                            listBox1.Items.Add("--------------------------------------");
+                        });
+                    }
+                    break;
+
+                default:
+                    Console.WriteLine("Mensaje no reconocido del servidor: " + mensaje);
+                    break;
+            }
+        }
+        //Checa si es async
+        private Task checasync(Action action)
+        {
+            if (this.IsDisposed || !this.IsHandleCreated)
+            {
+                return Task.CompletedTask;
+            }
+
+            var tarea = new TaskCompletionSource<object>();
+            this.BeginInvoke(new MethodInvoker(() =>
+            {
+                try
+                {
+                    action();
+                    tarea.SetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    tarea.SetException(ex);
+                }
+            }));
+            //Devuelve la tarea
+            return tarea.Task;
+        }
+
         //Se manda un mensaje par mostrar todos los mensajes en el panel
         private void mostrarmensajep(List<(string usuario, string contenido, DateTime fecha)> mensajes)
         {
@@ -619,17 +653,20 @@ namespace Chat_Interfaces
 
                 foreach (var m in mensajes)
                 {
+                    Color fondo;
                     bool esTuyo = m.usuario.Equals(_nombreUsuario, StringComparison.OrdinalIgnoreCase);
                     string nombreus = "";
                     if (esTuyo)
                     {
                         nombreus = "Tú";
+                        fondo = Color.LightBlue;
                     }
                     else
                     {
                         nombreus = m.usuario;
+                        fondo = Color.Beige;
                     }
-                    Color fondo = esTuyo ? Color.LightBlue : Color.Beige;
+
 
                     //Panel principal del mensaje
                     Panel pan = new Panel();
@@ -706,11 +743,11 @@ namespace Chat_Interfaces
             string nombreGrupo = listBox1.SelectedItem.ToString();
 
             //Obtener id del grupo desde el servidor
-            string mensajeIdGrupo = "ObtenerIDGrupo|" + nombreGrupo;
+            string mensajeIdGrupo = "Obtenerclave|" + nombreGrupo;
             string res = respuesta(mensajeIdGrupo);
             if (string.IsNullOrEmpty(res))
             {
-                MessageBox.Show("error al obtener id");
+                MessageBox.Show("error al obtener clave");
                 return;
             }
 
@@ -718,7 +755,7 @@ namespace Chat_Interfaces
             //Mismo caso de antes checamos los argumentos y si se puede convertir a int
             if (partes.Length < 2 || !int.TryParse(partes[1], out int idg))
             {
-                MessageBox.Show("id de grupo inválido.");
+                MessageBox.Show("clave inválido.");
                 return;
             }
             int idGrupo = idg;
@@ -737,9 +774,8 @@ namespace Chat_Interfaces
                     MessageBox.Show("No hay conexión activa con el servidor.");
                     return;
                 }
-                //Mostrar mensaje en el panel
-                mostrarmensajep(new List<(string, string, DateTime)> { (_nombreUsuario, contenido, DateTime.Now) });
-                //Limpiar campo de texto
+                //Mostrar todos los mensajes incluyendo el nuevo
+                mostrartodosmensajes(nombreGrupo);
                 respaldo = "";
                 textBox2.Clear();
             }
@@ -752,6 +788,45 @@ namespace Chat_Interfaces
         private void buttonEmoji_Click(object sender, EventArgs e)
         {
             panelEmojis.Visible = !panelEmojis.Visible;
+        }
+
+        //Muestra todos los mensajes del grupo selecionado
+        private void mostrartodosmensajes(string nombreg)
+        {
+            if (listBox1.SelectedItem == null || listBox1.SelectedItem.ToString().Contains("---"))
+            {
+                MessageBox.Show("No es grupo valido");
+                return;
+            }
+            string res= "cargar_mensajes|"+nombreg;
+            string mensajesrecibidos = respuesta(res);
+            if (string.IsNullOrEmpty(mensajesrecibidos))
+            {
+                MessageBox.Show("No se pudieron cargar los mensajes del grupo.");
+                return;
+            }
+            else
+            {                 
+                List<(string usuario, string contenido, DateTime fecha)> mensajes = new List<(string, string, DateTime)>();
+                string[] mensajesgrupo = mensajesrecibidos.Split(';');
+                foreach (string mensaje in mensajesgrupo)
+                {
+                    if (!string.IsNullOrWhiteSpace(mensaje))
+                    {
+                        string[] partes = mensaje.Split('|');
+                        if (partes.Length >= 3)
+                        {
+                            string usuario = partes[0];
+                            string contenido = partes[1];
+                            if (DateTime.TryParse(partes[2], out DateTime fecha))
+                            {
+                                mensajes.Add((usuario, contenido, fecha));
+                            }
+                        }
+                    }
+                }
+                mostrarmensajep(mensajes);
+            }
         }
     }
 }
