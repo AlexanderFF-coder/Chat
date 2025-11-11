@@ -49,7 +49,9 @@ namespace Chat_Interfaces
             {
                 using (TcpClient cliente = new TcpClient())
                 {
-                    await cliente.ConnectAsync("192.168.1.83", 8080);
+                    Direcionip direcionip = new Direcionip();
+                    string direcion = direcionip.ToString();
+                    await cliente.ConnectAsync(direcion, 8080);
 
                     using (NetworkStream flujo = cliente.GetStream())
                     {

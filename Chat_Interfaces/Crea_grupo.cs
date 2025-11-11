@@ -45,7 +45,9 @@ namespace Chat_Interfaces
             try
             {
                 //Conexión al servidor
-                cliente = new TcpClient("192.168.1.83", 8080);
+                Direcionip direcionip = new Direcionip();
+                string direcion = direcionip.ToString();
+                cliente = new TcpClient(direcion, 8080);
                 flujo = cliente.GetStream();
 
                 //Generar número aleatorio para la clave del grupo 

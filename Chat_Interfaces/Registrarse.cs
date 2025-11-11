@@ -91,9 +91,11 @@ namespace Chat_Interfaces
                 textBoxPassw.Focus();
                 return;
             }
-           
+
             //Mandamos informacion al servidor
-            cliente = new TcpClient("192.168.1.83", 8080);
+            Direcionip direcionip = new Direcionip();
+            string direcion = direcionip.ToString();
+            cliente = new TcpClient(direcion, 8080);
             flujo = cliente.GetStream();
             string mensaje = "2|" + nombre + "|" + email + "|" + pass+"|"+ dateTimeFechaNac.Value.ToString("yyyy-MM-dd");
             byte[] datos = Encoding.UTF8.GetBytes(mensaje);

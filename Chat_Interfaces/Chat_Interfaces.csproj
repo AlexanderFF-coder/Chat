@@ -119,6 +119,7 @@
     <Compile Include="AgregarMiembros.Designer.cs">
       <DependentUpon>AgregarMiembros.cs</DependentUpon>
     </Compile>
+    <Compile Include="Direcionip.cs" />
     <Compile Include="InicioSesion.cs">
       <SubType>Form</SubType>
     </Compile>
