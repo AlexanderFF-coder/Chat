@@ -113,13 +113,15 @@ namespace Chat_Interfaces
 
 
         //Espera una respuesta del server
-        private string respuesta(string mensaje, string host = "192.168.1.83", int port = 8080)
+        private string respuesta(string mensaje, int port = 8080)
         {
             try
             {
                 using (var client = new TcpClient())
                 {
-                    client.Connect(host, port);
+                    Direcionip dire = new Direcionip();
+                    string direcion = dire.direcion;
+                    client.Connect(direcion, port);
                     using (var s = client.GetStream())
                     {
                         byte[] datos = Encoding.UTF8.GetBytes(mensaje);
@@ -183,8 +185,8 @@ namespace Chat_Interfaces
             {
                 cliente = new TcpClient();
                 Direcionip direcionip = new Direcionip();
-                string direcion = direcionip.ToString();
-                await cliente.ConnectAsync(direcion, 8080);
+                string direcionp = direcionip.direcion;
+                await cliente.ConnectAsync(direcionp, 8080);
                 flujo = cliente.GetStream();
                 _ = escuchaservidor();
             }

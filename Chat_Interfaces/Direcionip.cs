@@ -8,11 +8,11 @@ namespace Chat_Interfaces
 {
     internal class Direcionip
     {
-        string direcionip;
+        public string direcion;
         //Inicializamos  el valor de la direccion ip
         public Direcionip()
         {
-            direcionip = "192.168.1.83";
+            direcion = "10.103.88.174";
         }
     }
 }

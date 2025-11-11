@@ -83,8 +83,8 @@ namespace Chat_Interfaces
             try
             {
                 Direcionip direcionip = new Direcionip();
-                string direcion=direcionip.ToString();
-                cliente = new TcpClient(direcion, 8080);
+                string direcionp = direcionip.direcion;
+                cliente = new TcpClient(direcionp, 8080);
                 flujo = cliente.GetStream();
 
                 if (string.IsNullOrEmpty(textBoxEmail.Text) || string.IsNullOrEmpty(textBoxPassword.Text))
