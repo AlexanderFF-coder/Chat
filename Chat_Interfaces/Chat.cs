@@ -620,6 +620,19 @@ namespace Chat_Interfaces
                         });
                     }
                     break;
+                case "agregar_miembros":
+                    string grupos = "Mostrargrupo|";
+                    string res = respuesta(grupos + _idUsuario);
+                    if (partes.Length >= 2)
+                    {
+                        string nombreGrupo = partes[1];
+                        await this.checasync(() =>
+                        {
+                            listBox1.Items.Add(nombreGrupo);
+                            listBox1.Items.Add("--------------------------------------");
+                        });
+                    }
+                    break;
 
                 default:
                     Console.WriteLine("Mensaje no reconocido: " + mensaje);
