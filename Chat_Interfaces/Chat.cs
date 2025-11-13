@@ -207,7 +207,10 @@ namespace Chat_Interfaces
             {
                 string grupos1 = "Mostrargrupo|";
                 string res1 = respuesta(grupos1 + _idUsuario);
-                if (string.IsNullOrEmpty(res1)) return;
+                if (string.IsNullOrEmpty(res1))
+                {
+                    return;
+                }
                 string[] grupos2 = res1.Split(';');
                 foreach (string grupo in grupos2)
                 {
@@ -259,7 +262,8 @@ namespace Chat_Interfaces
                 {
                     respuesta(mensaje);
                 }
-                mostrartodosmensajes(nombreg);
+                //La notacion indica como un await en un metodo async
+                _ = mostrartodosmensajes(nombreg);
             }
             catch (Exception ex)
             {
@@ -402,7 +406,7 @@ namespace Chat_Interfaces
             //Se usa out para indicar que es una parametro que se pasara
             if (!int.TryParse(partes[1],out idg))
             {
-                MessageBox.Show("clave de grupo inválido.");
+                MessageBox.Show("clave de grupo incorrecta");
                 return;
             }
             //Abrir formulario para agregar miembros
@@ -601,7 +605,7 @@ namespace Chat_Interfaces
                 case "5":
                     if (partes.Length > 1 && partes[1] == "OK")
                     {
-                        Console.WriteLine("Mensaje guardado correctamente en el servidor.");
+                        Console.WriteLine("Mensaje guardado en el servidor.");
                     }
                     break;
 
@@ -618,7 +622,7 @@ namespace Chat_Interfaces
                     break;
 
                 default:
-                    Console.WriteLine("Mensaje no reconocido del servidor: " + mensaje);
+                    Console.WriteLine("Mensaje no reconocido: " + mensaje);
                     break;
             }
         }
@@ -729,7 +733,7 @@ namespace Chat_Interfaces
         }
 
         //Envia el mensaje al servidor y carga los mensajes en el panel
-        private void label2_Click(object sender, EventArgs e)
+        private async void label2_Click(object sender, EventArgs e)
         {
             string contenido = respaldo.Trim();
             if (string.IsNullOrEmpty(contenido))
@@ -746,9 +750,9 @@ namespace Chat_Interfaces
 
             string nombreGrupo = listBox1.SelectedItem.ToString();
 
-            //Obtener id del grupo desde el servidor
+            //Obtener clave del grupo desde el servidor
             string mensajeIdGrupo = "Obtenerclave|" + nombreGrupo;
-            string res = respuesta(mensajeIdGrupo);
+            string res = await Task.Run(()  => respuesta(mensajeIdGrupo));
             if (string.IsNullOrEmpty(res))
             {
                 MessageBox.Show("error al obtener clave");
@@ -771,15 +775,15 @@ namespace Chat_Interfaces
                 if (cliente != null && cliente.Connected && flujo != null)
                 {
                     byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-                    flujo.Write(datos, 0, datos.Length);
+                    await flujo.WriteAsync(datos, 0, datos.Length);
                 }
                 else
                 {
-                    MessageBox.Show("No hay conexión activa con el servidor.");
+                    MessageBox.Show("No hay conexión con el servidor.");
                     return;
                 }
                 //Mostrar todos los mensajes incluyendo el nuevo
-                mostrartodosmensajes(nombreGrupo);
+                await mostrartodosmensajes(nombreGrupo);
                 respaldo = "";
                 textBox2.Clear();
             }
@@ -788,14 +792,14 @@ namespace Chat_Interfaces
                 MessageBox.Show("error al enviar mensaje: " + ex.Message);
             }
         }
-        //Checa emojis
+
         private void buttonEmoji_Click(object sender, EventArgs e)
         {
-            panelEmojis.Visible = !panelEmojis.Visible;
+            panelEmojis.Visible = panelEmojis.Visible;
         }
 
         //Muestra todos los mensajes del grupo selecionado
-        private void mostrartodosmensajes(string nombreg)
+        private async Task mostrartodosmensajes(string nombreg)
         {
             if (listBox1.SelectedItem == null || listBox1.SelectedItem.ToString().Contains("---"))
             {
@@ -803,14 +807,15 @@ namespace Chat_Interfaces
                 return;
             }
             string res= "cargar_mensajes|"+nombreg;
-            string mensajesrecibidos = respuesta(res);
+            string mensajesrecibidos = await Task.Run(() =>respuesta(res));
             if (string.IsNullOrEmpty(mensajesrecibidos))
             {
                 MessageBox.Show("No se pudieron cargar los mensajes del grupo.");
                 return;
             }
             else
-            {                 
+            {      
+                //Iniciamos lista con los mensajes del grupo
                 List<(string usuario, string contenido, DateTime fecha)> mensajes = new List<(string, string, DateTime)>();
                 string[] mensajesgrupo = mensajesrecibidos.Split(';');
                 foreach (string mensaje in mensajesgrupo)
@@ -822,10 +827,8 @@ namespace Chat_Interfaces
                         {
                             string usuario = partes[0];
                             string contenido = partes[1];
-                            if (DateTime.TryParse(partes[2], out DateTime fecha))
-                            {
-                                mensajes.Add((usuario, contenido, fecha));
-                            }
+                            DateTime fecha = DateTime.Parse(partes[2]);
+                            mensajes.Add((usuario, contenido, fecha));
                         }
                     }
                 }

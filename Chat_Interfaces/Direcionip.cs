@@ -12,7 +12,7 @@ namespace Chat_Interfaces
         //Inicializamos  el valor de la direccion ip
         public Direcionip()
         {
-            direcion = "10.103.88.174";
+            direcion = "192.168.1.83";
         }
     }
 }
