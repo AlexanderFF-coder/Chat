@@ -14,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Linq;
+using System.Globalization;
 
 namespace Chat_Interfaces
 {
@@ -596,9 +597,10 @@ namespace Chat_Interfaces
                     {
                         string usuario = partes[2];
                         string contenido = partes[3];
+                        string fecha = partes.Length >= 5 ? partes[4] : DateTime.Now.ToString("g");
                         await this.checasync(() =>
                         {
-                            mostrarmensajep(new List<(string, string, DateTime)>{(usuario, contenido, DateTime.Now)});
+                            mostrarmensajep(new List<(string, string, string)>{(usuario, contenido, fecha)});
                         });
                     }
                     break;
@@ -665,7 +667,7 @@ namespace Chat_Interfaces
         }
 
         //Se manda un mensaje par mostrar todos los mensajes en el panel
-        private void mostrarmensajep(List<(string usuario, string contenido, DateTime fecha)> mensajes)
+        private void mostrarmensajep(List<(string usuario, string contenido, string fecha)> mensajes)
         {
             panel1.Invoke((Action)(() =>
             {
@@ -730,7 +732,7 @@ namespace Chat_Interfaces
                     lab.AutoSize = true;
                     lab.Font = new Font("Arial", 6);
                     lab.ForeColor = Color.Gray;
-                    lab.Text = "Fecha: " + m.fecha.ToString("g");
+                    lab.Text = "Fecha: " + m.fecha;
                     lab.Top = pan.Bottom;
                     lab.Left = pan.Left;
                     panel1.Controls.Add(lab);
@@ -829,7 +831,7 @@ namespace Chat_Interfaces
             else
             {      
                 //Iniciamos lista con los mensajes del grupo
-                List<(string usuario, string contenido, DateTime fecha)> mensajes = new List<(string, string, DateTime)>();
+                List<(string usuario, string contenido, string fecha)> mensajes = new List<(string, string, string)>();
                 string[] mensajesgrupo = mensajesrecibidos.Split(';');
                 foreach (string mensaje in mensajesgrupo)
                 {
@@ -840,8 +842,8 @@ namespace Chat_Interfaces
                         {
                             string usuario = partes[0];
                             string contenido = partes[1];
-                            DateTime fecha = DateTime.Parse(partes[2]);
-                            mensajes.Add((usuario, contenido, fecha));
+                           
+                            mensajes.Add((usuario, contenido, partes[2]));
                         }
                     }
                 }
