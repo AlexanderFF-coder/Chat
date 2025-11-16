@@ -36,7 +36,7 @@ namespace Chat_Interfaces
         private ListBox listBoxUsuarios;
         private List<string> listaUsuarios = new List<string>();
 
-      
+
         int tam = 0, tamaux;
         string respaldo = "";
         bool borrando = false;
@@ -107,7 +107,7 @@ namespace Chat_Interfaces
             textBox2.Font = new Font("Segoe UI Emoji", 9f);
 
             //Mostrar nombre de sesión en el título
-            this.Text = "Chat-Sesión:"+ _nombreUsuario;
+            this.Text = "Chat-Sesión:" + _nombreUsuario;
 
             listBox1.Items.Clear();
         }
@@ -232,7 +232,7 @@ namespace Chat_Interfaces
             string[] grupos = res.Split('|');
             foreach (string grupo in grupos)
             {
-                if (!string.IsNullOrWhiteSpace(grupo)&&!grupo.Contains("0"))
+                if (!string.IsNullOrWhiteSpace(grupo) && !grupo.Contains("0"))
                 {
                     listBox1.Items.Add(grupo);
                     listBox1.Items.Add("--------------------------------------");
@@ -244,13 +244,13 @@ namespace Chat_Interfaces
         {
             if (listBox1.SelectedItem == null)
             {
-                return; 
+                return;
             }
 
             string nombreg = listBox1.SelectedItem.ToString();
             panel1.Controls.Clear();
 
-            string mensaje = "4|"+nombreg;
+            string mensaje = "4|" + nombreg;
 
             try
             {
@@ -405,7 +405,7 @@ namespace Chat_Interfaces
 
             int idg = 0;
             //Se usa out para indicar que es una parametro que se pasara
-            if (!int.TryParse(partes[1],out idg))
+            if (!int.TryParse(partes[1], out idg))
             {
                 MessageBox.Show("clave de grupo incorrecta");
                 return;
@@ -523,14 +523,14 @@ namespace Chat_Interfaces
         private void Chat_FormClosing(object sender, FormClosingEventArgs e)
         {
             ejecutando = false;
-            flujo.Close(); 
+            flujo.Close();
             if (cliente != null && cliente.Connected)
             {
                 cliente.Close();
             }
             if (hilo != null && hilo.IsAlive)
             {
-               hilo.Join(500);
+                hilo.Join(500);
             }
             foreach (var kv in emojis)
             {
@@ -573,9 +573,10 @@ namespace Chat_Interfaces
             {
                 if (ejecutando)
                 {
-                    await this.checasync(() =>
+                    await this.checasync(async() =>
                     {
                         MessageBox.Show("Se perdió la conexión con el servidor.\n" + ex.Message);
+                        await Task.CompletedTask;
                     });
                 }
             }
@@ -597,11 +598,24 @@ namespace Chat_Interfaces
                     {
                         string usuario = partes[2];
                         string contenido = partes[3];
-                        string fecha = partes.Length >= 5 ? partes[4] : DateTime.Now.ToString("g");
-                        await this.checasync(() =>
+                        string fecha = "";
+                        if (partes.Length >= 5)
                         {
-                            mostrarmensajep(new List<(string, string, string)>{(usuario, contenido, fecha)});
+                            fecha = partes[4];
+                        }
+                        else
+                        {
+                            fecha = DateTime.Now.ToString("g");
+                        }
+                        //Espera un momento para mostrar el mensaje
+                        await Task.Delay(100);
+                        await this.checasync(async() =>
+                        {
+                            // muestra el mensaje en el panel
+                            _=mostrarmensajeunico(usuario, contenido, fecha);
+                            await Task.CompletedTask;
                         });
+                        
                     }
                     break;
                 case "5":
@@ -615,10 +629,11 @@ namespace Chat_Interfaces
                     if (partes.Length >= 2)
                     {
                         string nombreGrupo = partes[1];
-                        await this.checasync(() =>
+                        await this.checasync(async() =>
                         {
                             listBox1.Items.Add(nombreGrupo);
                             listBox1.Items.Add("--------------------------------------");
+                            await Task.CompletedTask;
                         });
                     }
                     break;
@@ -628,12 +643,24 @@ namespace Chat_Interfaces
                     if (partes.Length >= 2)
                     {
                         string nombreGrupo = partes[1];
-                        await this.checasync(() =>
+                        await this.checasync(async() =>
                         {
                             listBox1.Items.Add(nombreGrupo);
                             listBox1.Items.Add("--------------------------------------");
+                            await Task.CompletedTask;
                         });
                     }
+                    break;
+                ///////////////////////////////////////////////////////////////
+                case "agregar_grupos":
+                    string grupos2 = partes[1];
+                    await Task.Delay(100);
+                    await this.checasync(async() =>
+                    {
+                        listBox1.Items.Add(grupos2);
+                        listBox1.Items.Add("--------------------------------------");
+                        await Task.CompletedTask;
+                    });
                     break;
 
                 default:
@@ -642,7 +669,8 @@ namespace Chat_Interfaces
             }
         }
         //Checa si es async
-        private Task checasync(Action action)
+        //Se cambia la accion por functask parqa que pueda ser async
+        private Task checasync(Func<Task> action)
         {
             if (this.IsDisposed || !this.IsHandleCreated)
             {
@@ -650,11 +678,11 @@ namespace Chat_Interfaces
             }
 
             var tarea = new TaskCompletionSource<object>();
-            this.BeginInvoke(new MethodInvoker(() =>
+            this.BeginInvoke(new MethodInvoker(async() =>
             {
                 try
                 {
-                    action();
+                    await action();
                     tarea.SetResult(null);
                 }
                 catch (Exception ex)
@@ -666,16 +694,26 @@ namespace Chat_Interfaces
             return tarea.Task;
         }
 
-        //Se manda un mensaje par mostrar todos los mensajes en el panel
-        private void mostrarmensajep(List<(string usuario, string contenido, string fecha)> mensajes)
+
+        private async Task mostrarmensajep(List<(string usuario, string contenido, string fecha)> mensajes)
         {
-            panel1.Invoke((Action)(() =>
+            //Se le pone async para que nos se quede estatica la interfaz
+            await checasync(async() =>
             {
-                panel1.Controls.Clear();
                 int alturaAcumulada = 0;
 
                 foreach (var m in mensajes)
                 {
+                    //Calcula si el mensaje es del usuario actual
+                    var ultimoPanel = panel1.Controls.OfType<Panel>().OrderByDescending(p => p.Bottom).FirstOrDefault();
+                    if (ultimoPanel != null)
+                    {
+                        alturaAcumulada = ultimoPanel.Bottom + 5;
+                    }
+                    else
+                    {
+                        alturaAcumulada = 0;
+                    }
                     Color fondo;
                     bool esTuyo = m.usuario.Equals(_nombreUsuario, StringComparison.OrdinalIgnoreCase);
                     string nombreus = "";
@@ -690,14 +728,11 @@ namespace Chat_Interfaces
                         fondo = Color.Beige;
                     }
 
-
-                    //Panel principal del mensaje
                     Panel pan = new Panel();
                     pan.Width = panel1.Width - 25;
                     pan.BackColor = fondo;
                     pan.Top = alturaAcumulada;
 
-                    //Label del nombre
                     Label lblNombre = new Label();
                     lblNombre.AutoSize = true;
                     lblNombre.Font = new Font("Arial", 8, FontStyle.Bold);
@@ -706,7 +741,6 @@ namespace Chat_Interfaces
                     lblNombre.Left = 5;
                     pan.Controls.Add(lblNombre);
 
-                    //Texto del mensaje 
                     RichTextBox txt = new RichTextBox();
                     txt.BorderStyle = BorderStyle.None;
                     txt.BackColor = fondo;
@@ -727,7 +761,6 @@ namespace Chat_Interfaces
 
                     panel1.Controls.Add(pan);
 
-                    //Fecha 
                     Label lab = new Label();
                     lab.AutoSize = true;
                     lab.Font = new Font("Arial", 6);
@@ -743,8 +776,9 @@ namespace Chat_Interfaces
                 if (panel1.Controls.Count > 0)
                 {
                     panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
-                }    
-            }));
+                }
+                await Task.CompletedTask;
+            });
         }
 
         //Envia el mensaje al servidor y carga los mensajes en el panel
@@ -767,7 +801,8 @@ namespace Chat_Interfaces
 
             //Obtener clave del grupo desde el servidor
             string mensajeIdGrupo = "Obtenerclave|" + nombreGrupo;
-            string res = await Task.Run(()  => respuesta(mensajeIdGrupo));
+            //Esperamos respuesta
+            string res = await Task.Run(() => respuesta(mensajeIdGrupo));
             if (string.IsNullOrEmpty(res))
             {
                 MessageBox.Show("error al obtener clave");
@@ -783,7 +818,7 @@ namespace Chat_Interfaces
             }
             int idGrupo = idg;
             //mensaje
-            string mensaje = "guardar_mensaje|"+_idUsuario+"|"+idg+"|"+contenido;
+            string mensaje = "guardar_mensaje|" + _idUsuario + "|" + idg + "|" + contenido;
 
             try
             {
@@ -797,7 +832,9 @@ namespace Chat_Interfaces
                     MessageBox.Show("No hay conexión con el servidor.");
                     return;
                 }
-                //Mostrar todos los mensajes incluyendo el nuevo
+                //Muestra el mensaje en el panel a los clientes conectados
+                _ = procesarmensaje("nuevo_mensaje|" + idg + "|" + _nombreUsuario + "|" + contenido + "|" + DateTime.Now.ToString("g"));
+                //Muestra todos los mensajes del grupo seleccionado
                 await mostrartodosmensajes(nombreGrupo);
                 respaldo = "";
                 textBox2.Clear();
@@ -821,15 +858,15 @@ namespace Chat_Interfaces
                 MessageBox.Show("No es grupo valido");
                 return;
             }
-            string res= "cargar_mensajes|"+nombreg;
-            string mensajesrecibidos = await Task.Run(() =>respuesta(res));
+            string res = "cargar_mensajes|" + nombreg;
+            string mensajesrecibidos = await Task.Run(() => respuesta(res));
             if (string.IsNullOrEmpty(mensajesrecibidos))
             {
                 MessageBox.Show("No se pudieron cargar los mensajes del grupo.");
                 return;
             }
             else
-            {      
+            {
                 //Iniciamos lista con los mensajes del grupo
                 List<(string usuario, string contenido, string fecha)> mensajes = new List<(string, string, string)>();
                 string[] mensajesgrupo = mensajesrecibidos.Split(';');
@@ -842,13 +879,26 @@ namespace Chat_Interfaces
                         {
                             string usuario = partes[0];
                             string contenido = partes[1];
-                           
+
                             mensajes.Add((usuario, contenido, partes[2]));
                         }
                     }
                 }
-                mostrarmensajep(mensajes);
+                panel1.Controls.Clear();
+                _=mostrarmensajep(mensajes);
             }
+        }
+
+        //Envio un solo mensaje al panel
+        private async Task mostrarmensajeunico(string usuario, string contenido, string fecha)
+        {
+            //Obtenemos los mensajes del chat y agregamos el nuevo
+            await mostrarmensajep(new List<(string usuario, string contenido, string fecha)>{(usuario, contenido, fecha)});
+            //Desplazamos el scroll al final
+            if (panel1.Controls.Count > 0)
+            {
+                panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
+            }            
         }
     }
 }
