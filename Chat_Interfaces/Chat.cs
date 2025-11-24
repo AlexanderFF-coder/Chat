@@ -114,7 +114,7 @@ namespace Chat_Interfaces
 
 
         //Espera una respuesta del server
-        private string respuesta(string mensaje, int port = 8080)
+        private string respuesta(string mensaje)
         {
             try
             {
@@ -122,7 +122,7 @@ namespace Chat_Interfaces
                 {
                     Direcionip dire = new Direcionip();
                     string direcion = dire.direcion;
-                    client.Connect(direcion, port);
+                    client.Connect(direcion, 8080);
                     using (var s = client.GetStream())
                     {
                         byte[] datos = Encoding.UTF8.GetBytes(mensaje);
@@ -130,6 +130,7 @@ namespace Chat_Interfaces
 
                         byte[] buffer = new byte[4096];
                         int bytesLeidos = s.Read(buffer, 0, buffer.Length);
+                        s.Close();
                         return Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
                     }
                 }
@@ -548,7 +549,7 @@ namespace Chat_Interfaces
 
             try
             {
-                while (ejecutando && cliente != null && cliente.Connected)
+                while (ejecutando)
                 {
                     bytesLeidos = await flujo.ReadAsync(buffer, 0, buffer.Length);
                     if (bytesLeidos == 0)
@@ -566,7 +567,7 @@ namespace Chat_Interfaces
                     }
 
                     juntar.Clear();
-                    juntar.Append(mensajes[mensajes.Length - 1]);
+                    juntar.Append(mensajes.Last());
                 }
             }
             catch (IOException ex)
@@ -599,6 +600,10 @@ namespace Chat_Interfaces
                         string usuario = partes[2];
                         string contenido = partes[3];
                         string fecha = "";
+                        if(usuario.Equals(_nombreUsuario, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return;
+                        }
                         if (partes.Length >= 5)
                         {
                             fecha = partes[4];
@@ -832,12 +837,12 @@ namespace Chat_Interfaces
                     MessageBox.Show("No hay conexión con el servidor.");
                     return;
                 }
-                //Muestra el mensaje en el panel a los clientes conectados
-                _ = procesarmensaje("nuevo_mensaje|" + idg + "|" + _nombreUsuario + "|" + contenido + "|" + DateTime.Now.ToString("g"));
                 //Muestra todos los mensajes del grupo seleccionado
+                await procesarmensaje("nuevo_mensaje|" + idGrupo + "|" + _nombreUsuario + "|" + contenido);
                 await mostrartodosmensajes(nombreGrupo);
                 respaldo = "";
                 textBox2.Clear();
+                
             }
             catch (Exception ex)
             {
