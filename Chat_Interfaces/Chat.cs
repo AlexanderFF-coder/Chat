@@ -840,6 +840,8 @@ namespace Chat_Interfaces
                 //Muestra todos los mensajes del grupo seleccionado
                 await procesarmensaje("nuevo_mensaje|" + idGrupo + "|" + _nombreUsuario + "|" + contenido);
                 await mostrartodosmensajes(nombreGrupo);
+               
+                
                 respaldo = "";
                 textBox2.Clear();
                 
