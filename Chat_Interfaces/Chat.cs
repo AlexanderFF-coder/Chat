@@ -32,7 +32,7 @@ namespace Chat_Interfaces
         private string _usuarioEmail;
         private string _idUsuario;
         private string _nombreUsuario;
-
+        private System.Windows.Forms.Timer timerRefresco;
         //Menciones
         private Panel panelMenciones;
         private ListBox listBoxUsuarios;
@@ -121,6 +121,10 @@ namespace Chat_Interfaces
 
             cliente = new TcpClient();
 
+            timerRefresco = new System.Windows.Forms.Timer();
+            timerRefresco.Interval = 500; // 2000 ms = 2 segundos (ajusta si quieres más rápido o lento)
+            timerRefresco.Tick += timerRefresco_Tick; // Vinculamos el evento
+            timerRefresco.Start(); // Arrancamos el timer
         }
 
 
@@ -688,23 +692,39 @@ namespace Chat_Interfaces
 
         private async Task mostrarmensajep(List<(string usuario, string contenido, string fecha)> mensajes)
         {
-            //Se le pone async para que nos se quede estatica la interfaz
             await checasync(async () =>
             {
+                // 1. Contamos cuántos mensajes ya están dibujados en el panel
+                // (Dividimos entre 2 porque cada mensaje usa 1 Panel + 1 Label de fecha)
+                int mensajesActuales = panel1.Controls.Count / 2;
+
+                // 2. Si la lista que llegó del server no tiene nada nuevo, no hacemos nada
+                if (mensajes.Count <= mensajesActuales)
+                {
+                    await Task.CompletedTask;
+                    return;
+                }
+
                 int alturaAcumulada = 0;
 
-                foreach (var m in mensajes)
+                // 3. Calculamos la altura donde nos quedamos (debajo del último mensaje)
+                var ultimoControl = panel1.Controls.OfType<Control>().OrderByDescending(c => c.Bottom).FirstOrDefault();
+                if (ultimoControl != null)
                 {
-                    //Calcula si el mensaje es del usuario actual
-                    var ultimoPanel = panel1.Controls.OfType<Panel>().OrderByDescending(p => p.Bottom).FirstOrDefault();
-                    if (ultimoPanel != null)
-                    {
-                        alturaAcumulada = ultimoPanel.Bottom + 5;
-                    }
-                    else
-                    {
-                        alturaAcumulada = 0;
-                    }
+                    alturaAcumulada = ultimoControl.Bottom + 5;
+                }
+                else
+                {
+                    alturaAcumulada = 0;
+                }
+
+                // 4. AQUÍ ESTÁ LA MAGIA: Empezamos el ciclo DESDE donde nos quedamos
+                // Usamos un 'for' en lugar de 'foreach' para saltarnos los viejos
+                for (int i = mensajesActuales; i < mensajes.Count; i++)
+                {
+                    var m = mensajes[i]; // Obtenemos solo el mensaje nuevo
+
+                    // --- DE AQUÍ PARA ABAJO ES TU MISMO CÓDIGO DE DISEÑO ---
                     Color fondo;
                     bool esTuyo = m.usuario.Equals(_nombreUsuario, StringComparison.OrdinalIgnoreCase);
                     string nombreus = "";
@@ -764,6 +784,7 @@ namespace Chat_Interfaces
                     alturaAcumulada += pan.Height + lab.Height + 5;
                 }
 
+                // 5. Solo hacemos scroll si se agregaron mensajes nuevos
                 if (panel1.Controls.Count > 0)
                 {
                     panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
@@ -876,7 +897,7 @@ namespace Chat_Interfaces
                         }
                     }
                 }
-                panel1.Controls.Clear();
+                //panel1.Controls.Clear();
                 _ = mostrarmensajep(mensajes);
             }
         }
@@ -970,5 +991,22 @@ namespace Chat_Interfaces
                 Console.WriteLine("Error en el buscador: " + ex.Message);
             }
         }
-     }
+        private void timerRefresco_Tick(object sender, EventArgs e)
+        {
+            // Solo actualizamos si hay conexión y si el usuario seleccionó un grupo válido
+            if (conectado && cliente != null && cliente.Connected &&
+                listBox1.SelectedItem != null &&
+                !listBox1.SelectedItem.ToString().Contains("---"))
+            {
+                // Obtenemos el nombre del grupo actual
+                string nombreGrupo = listBox1.SelectedItem.ToString();
+
+                // Llamamos a tu función existente que descarga y pinta los mensajes
+                // Usamos _ = para descartar la tarea async y que no de warning
+                _ = mostrartodosmensajes(nombreGrupo);
+            }
+        }
+    }
+
 }
+
