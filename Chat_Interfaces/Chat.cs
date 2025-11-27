@@ -3,7 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -13,8 +15,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Linq;
-using System.Globalization;
+using static Mysqlx.Crud.Order.Types;
 
 namespace Chat_Interfaces
 {
@@ -23,9 +24,10 @@ namespace Chat_Interfaces
         //Variables para server 
         TcpClient cliente;
         public NetworkStream flujo;
-        Thread hilo;
         bool ejecutando = true;
-
+        private TaskCompletionSource<string> respuestapen = null;
+        private bool conectado = false;
+        Direcionip direcionip;
         //Variables de sesión
         private string _usuarioEmail;
         private string _idUsuario;
@@ -36,8 +38,11 @@ namespace Chat_Interfaces
         private ListBox listBoxUsuarios;
         private List<string> listaUsuarios = new List<string>();
 
+        //Variables de opcion extra
 
-        int tam = 0, tamaux;
+        private System.Windows.Forms.Timer timerBusqueda;
+        private SemaphoreSlim _semaforo = new SemaphoreSlim(1, 1);
+
         string respaldo = "";
         bool borrando = false;
 
@@ -54,7 +59,10 @@ namespace Chat_Interfaces
             _nombreUsuario = nombreUsuario;
 
             cargarEmojis();
-
+            //Se usa la variable timer para definir la parte de las consultas del buscador para hacer una consulta
+            timerBusqueda = new System.Windows.Forms.Timer();
+            timerBusqueda.Interval = 500; 
+            timerBusqueda.Tick += busqueda; 
             //Configurar botón emoji 
             buttonEmoji.Click += btnEmoji_Click;
             if (emojis.TryGetValue(":smile:", out Image btnImg))
@@ -110,35 +118,50 @@ namespace Chat_Interfaces
             this.Text = "Chat-Sesión:" + _nombreUsuario;
 
             listBox1.Items.Clear();
+
+            cliente = new TcpClient();
+
         }
 
 
         //Espera una respuesta del server
-        private string respuesta(string mensaje)
+        private async Task<string> respuesta(string mensaje)
         {
+            if (!conectado || flujo == null || cliente == null || !cliente.Connected)
+                return null;
+
+            //esperamos turno
+            await _semaforo.WaitAsync();
             try
             {
-                using (var client = new TcpClient())
-                {
-                    Direcionip dire = new Direcionip();
-                    string direcion = dire.direcion;
-                    client.Connect(direcion, 8080);
-                    using (var s = client.GetStream())
-                    {
-                        byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-                        s.Write(datos, 0, datos.Length);
+                respuestapen = new TaskCompletionSource<string>();
 
-                        byte[] buffer = new byte[4096];
-                        int bytesLeidos = s.Read(buffer, 0, buffer.Length);
-                        s.Close();
-                        return Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
-                    }
+                await Enviar(mensaje);
+
+                //Esperamos respuesta
+                var tareares = respuestapen.Task;
+                var tareatiempo = Task.Delay(5000);
+
+                var completada = await Task.WhenAny(tareares, tareatiempo);
+
+                if (completada == tareatiempo)
+                {
+                    Console.WriteLine("Timeout esperando: " + mensaje);
+                    return null;
                 }
+
+                return await tareares;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("error: " + ex.Message);
-                return string.Empty;
+                Console.WriteLine(ex.Message);
+                return null;
+            }
+            finally
+            {
+                //libera el semaforo
+                respuestapen = null;
+                _semaforo.Release();
             }
         }
 
@@ -183,65 +206,31 @@ namespace Chat_Interfaces
 
         private async void Chat_Load(object sender, EventArgs e)
         {
+            listBox1.Items.Clear();
             try
             {
-                cliente = new TcpClient();
                 Direcionip direcionip = new Direcionip();
-                string direcionp = direcionip.direcion;
-                await cliente.ConnectAsync(direcionp, 8080);
+                await cliente.ConnectAsync(direcionip.direcion, 8080);
+                conectado = true;
                 flujo = cliente.GetStream();
                 _ = escuchaservidor();
+                await CargarGrupos();
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                MessageBox.Show("Error al conectar: " + ex.Message);
             }
         }
 
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
+        private async void textBox1_TextChanged(object sender, EventArgs e)
         {
-            string chec = textBox1.Text;
-            listBox1.Items.Clear();
-            panel1.Controls.Clear();
-            //Si no hay texto, cargar todos los grupos
-            if (string.IsNullOrEmpty(chec))
-            {
-                string grupos1 = "Mostrargrupo|";
-                string res1 = respuesta(grupos1 + _idUsuario);
-                if (string.IsNullOrEmpty(res1))
-                {
-                    return;
-                }
-                string[] grupos2 = res1.Split(';');
-                foreach (string grupo in grupos2)
-                {
-                    if (!string.IsNullOrWhiteSpace(grupo))
-                    {
-                        listBox1.Items.Add(grupo);
-                        listBox1.Items.Add("--------------------------------------");
-                    }
-                }
-                return;
-            }
-            string mensaje = "buscar_grupo|" + chec + "|" + _idUsuario;
-            string res = respuesta(mensaje);
-            if (string.IsNullOrEmpty(res))
-            {
-                return;
-            }
-            string[] grupos = res.Split('|');
-            foreach (string grupo in grupos)
-            {
-                if (!string.IsNullOrWhiteSpace(grupo) && !grupo.Contains("0"))
-                {
-                    listBox1.Items.Add(grupo);
-                    listBox1.Items.Add("--------------------------------------");
-                }
-            }
+            //Ajustamos la busqueda en la barra de busqueda para no sobrecargar con varias letras a la vez si no que  analiza por periodo de tiempo
+            timerBusqueda.Stop();
+            timerBusqueda.Start();
         }
 
-        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        private async void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (listBox1.SelectedItem == null)
             {
@@ -257,12 +246,11 @@ namespace Chat_Interfaces
             {
                 if (flujo != null && cliente != null && cliente.Connected)
                 {
-                    byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-                    flujo.Write(datos, 0, datos.Length);
+                    await Enviar(mensaje);
                 }
                 else
                 {
-                    respuesta(mensaje);
+                    await respuesta(mensaje);
                 }
                 //La notacion indica como un await en un metodo async
                 _ = mostrartodosmensajes(nombreg);
@@ -379,7 +367,7 @@ namespace Chat_Interfaces
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void button1_Click(object sender, EventArgs e)
         {
             if (listBox1.SelectedItem == null || listBox1.SelectedItem.ToString().Contains("---"))
             {
@@ -390,7 +378,7 @@ namespace Chat_Interfaces
             string nombreGrupo = listBox1.SelectedItem.ToString();
             string mensaje = "Obtenerclave|" + nombreGrupo;
 
-            string res = respuesta(mensaje);
+            string res = await respuesta(mensaje);
             if (string.IsNullOrEmpty(res))
             {
                 MessageBox.Show("error al obtener clave del grupo");
@@ -494,26 +482,12 @@ namespace Chat_Interfaces
                 borrando = false;
             }
         }
-
-        private void Chat_Activated(object sender, EventArgs e)
+        //Carg grupos
+        private async void Chat_Activated(object sender, EventArgs e)
         {
-            listBox1.Items.Clear();
-            if (!this.Visible)
+            if (this.Visible && conectado)
             {
-                return;
-            }
-            string grupos = "Mostrargrupo|";
-            string res = respuesta(grupos + _idUsuario);
-            if (string.IsNullOrEmpty(res)) return;
-
-            string[] grupos1 = res.Split(';');
-            foreach (string grupo in grupos1)
-            {
-                if (!string.IsNullOrWhiteSpace(grupo))
-                {
-                    listBox1.Items.Add(grupo);
-                    listBox1.Items.Add("--------------------------------------");
-                }
+                await CargarGrupos();
             }
         }
 
@@ -528,10 +502,6 @@ namespace Chat_Interfaces
             if (cliente != null && cliente.Connected)
             {
                 cliente.Close();
-            }
-            if (hilo != null && hilo.IsAlive)
-            {
-                hilo.Join(500);
             }
             foreach (var kv in emojis)
             {
@@ -552,33 +522,26 @@ namespace Chat_Interfaces
                 while (ejecutando)
                 {
                     bytesLeidos = await flujo.ReadAsync(buffer, 0, buffer.Length);
-                    if (bytesLeidos == 0)
-                    {
-                        break;
-                    }
+                    if (bytesLeidos == 0) break;
+
                     string recibido = Encoding.UTF8.GetString(buffer, 0, bytesLeidos);
                     juntar.Append(recibido);
 
-                    string[] mensajes = juntar.ToString().Split('\n');
+                    string contenido = juntar.ToString();
+                    int index;
 
-                    for (int i = 0; i < mensajes.Length - 1; i++)
+                    //checa que termine con \n
+                    while ((index = contenido.IndexOf('\n')) >= 0)
                     {
-                        await procesarmensaje(mensajes[i]);
+                        string mensaje = contenido.Substring(0, index).Trim();
+                        contenido = contenido.Substring(index + 1);
+
+                        if (!string.IsNullOrEmpty(mensaje))
+                            await procesarmensaje(mensaje);
                     }
 
                     juntar.Clear();
-                    juntar.Append(mensajes.Last());
-                }
-            }
-            catch (IOException ex)
-            {
-                if (ejecutando)
-                {
-                    await this.checasync(async() =>
-                    {
-                        MessageBox.Show("Se perdió la conexión con el servidor.\n" + ex.Message);
-                        await Task.CompletedTask;
-                    });
+                    juntar.Append(contenido);
                 }
             }
             catch (Exception ex)
@@ -589,21 +552,35 @@ namespace Chat_Interfaces
         //Funcion de checa mensje posible
         private async Task procesarmensaje(string mensaje)
         {
-            string[] partes = mensaje.Split('|');
-            if (partes.Length == 0) return;
+            mensaje = mensaje.Trim();
+            if (string.IsNullOrEmpty(mensaje)) return;
 
-            switch (partes[0])
+            string[] partes = mensaje.Split('|');
+            string tok = partes[0];
+            //Cambiamos la logica para que sea los mensajes que se usan para recibir o mandar al servidor dependiendo de las opciones que mandemos de acuerdo a la notacion 
+
+            switch (tok)
             {
-                case "nuevo_mensaje":
+                case "Mostrargrupo":
+                case "buscar_grupo":
+                case "Obtenerclave":
+                case "cargar_mensajes":
+                case "mensajes_grupo":
+                case "agregar_grupos1":
+                    respuestapen?.SetResult(mensaje);
+                    respuestapen = null;
+                    return;
+            }
+
+            switch (tok)
+            {
+                case "mensaje_nuevo":
                     if (partes.Length >= 4)
                     {
                         string usuario = partes[2];
                         string contenido = partes[3];
                         string fecha = "";
-                        if(usuario.Equals(_nombreUsuario, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return;
-                        }
+
                         if (partes.Length >= 5)
                         {
                             fecha = partes[4];
@@ -614,13 +591,13 @@ namespace Chat_Interfaces
                         }
                         //Espera un momento para mostrar el mensaje
                         await Task.Delay(100);
-                        await this.checasync(async() =>
+                        await this.checasync(async () =>
                         {
                             // muestra el mensaje en el panel
-                            _=mostrarmensajeunico(usuario, contenido, fecha);
+                            _ = mostrarmensajeunico(usuario, contenido, fecha);
                             await Task.CompletedTask;
                         });
-                        
+
                     }
                     break;
                 case "5":
@@ -634,7 +611,7 @@ namespace Chat_Interfaces
                     if (partes.Length >= 2)
                     {
                         string nombreGrupo = partes[1];
-                        await this.checasync(async() =>
+                        await this.checasync(async () =>
                         {
                             listBox1.Items.Add(nombreGrupo);
                             listBox1.Items.Add("--------------------------------------");
@@ -644,11 +621,11 @@ namespace Chat_Interfaces
                     break;
                 case "agregar_miembros":
                     string grupos = "Mostrargrupo|";
-                    string res = respuesta(grupos + _idUsuario);
+                    //string res =await respuesta(grupos + _idUsuario);
                     if (partes.Length >= 2)
                     {
                         string nombreGrupo = partes[1];
-                        await this.checasync(async() =>
+                        await this.checasync(async () =>
                         {
                             listBox1.Items.Add(nombreGrupo);
                             listBox1.Items.Add("--------------------------------------");
@@ -657,15 +634,24 @@ namespace Chat_Interfaces
                     }
                     break;
                 ///////////////////////////////////////////////////////////////
-                case "agregar_grupos":
-                    string grupos2 = partes[1];
-                    await Task.Delay(100);
-                    await this.checasync(async() =>
+                case "agregar_grupos1":
+                    if (partes.Length >= 2)
                     {
-                        listBox1.Items.Add(grupos2);
-                        listBox1.Items.Add("--------------------------------------");
-                        await Task.CompletedTask;
-                    });
+                        string[] grupo = partes[1].Split(';');
+
+                        await this.checasync(async () =>
+                        {
+                            foreach (string car in grupo)
+                            {
+                                if (!string.IsNullOrWhiteSpace(car) && !listBox1.Items.Contains(car))
+                                {
+                                    listBox1.Items.Add(car);
+                                    listBox1.Items.Add("--------------------------------------");
+                                }
+                            }
+                            await Task.CompletedTask;
+                        });
+                    }
                     break;
 
                 default:
@@ -683,7 +669,7 @@ namespace Chat_Interfaces
             }
 
             var tarea = new TaskCompletionSource<object>();
-            this.BeginInvoke(new MethodInvoker(async() =>
+            this.BeginInvoke(new MethodInvoker(async () =>
             {
                 try
                 {
@@ -703,7 +689,7 @@ namespace Chat_Interfaces
         private async Task mostrarmensajep(List<(string usuario, string contenido, string fecha)> mensajes)
         {
             //Se le pone async para que nos se quede estatica la interfaz
-            await checasync(async() =>
+            await checasync(async () =>
             {
                 int alturaAcumulada = 0;
 
@@ -805,9 +791,9 @@ namespace Chat_Interfaces
             string nombreGrupo = listBox1.SelectedItem.ToString();
 
             //Obtener clave del grupo desde el servidor
-            string mensajeIdGrupo = "Obtenerclave|" + nombreGrupo;
+            string mensajeIdGrupo = "Obtenerclave|" + nombreGrupo+"\n";
             //Esperamos respuesta
-            string res = await Task.Run(() => respuesta(mensajeIdGrupo));
+            string res = await respuesta(mensajeIdGrupo);
             if (string.IsNullOrEmpty(res))
             {
                 MessageBox.Show("error al obtener clave");
@@ -823,28 +809,23 @@ namespace Chat_Interfaces
             }
             int idGrupo = idg;
             //mensaje
-            string mensaje = "guardar_mensaje|" + _idUsuario + "|" + idg + "|" + contenido;
+            string mensaje = "guardar_mensaje|" + _idUsuario + "|" + idg + "|" + contenido+"\n";
 
             try
             {
                 if (cliente != null && cliente.Connected && flujo != null)
                 {
-                    byte[] datos = Encoding.UTF8.GetBytes(mensaje);
-                    await flujo.WriteAsync(datos, 0, datos.Length);
+                    await Enviar(mensaje);
                 }
                 else
                 {
                     MessageBox.Show("No hay conexión con el servidor.");
                     return;
                 }
-                //Muestra todos los mensajes del grupo seleccionado
-                await procesarmensaje("nuevo_mensaje|" + idGrupo + "|" + _nombreUsuario + "|" + contenido);
-                await mostrartodosmensajes(nombreGrupo);
-               
-                
+
                 respaldo = "";
                 textBox2.Clear();
-                
+
             }
             catch (Exception ex)
             {
@@ -866,7 +847,11 @@ namespace Chat_Interfaces
                 return;
             }
             string res = "cargar_mensajes|" + nombreg;
-            string mensajesrecibidos = await Task.Run(() => respuesta(res));
+            string mensajesrecibidos = await respuesta(res);
+            
+            if (mensajesrecibidos.StartsWith("mensajes_grupo|"))
+                mensajesrecibidos = mensajesrecibidos.Substring("mensajes_grupo|".Length);
+
             if (string.IsNullOrEmpty(mensajesrecibidos))
             {
                 MessageBox.Show("No se pudieron cargar los mensajes del grupo.");
@@ -876,7 +861,7 @@ namespace Chat_Interfaces
             {
                 //Iniciamos lista con los mensajes del grupo
                 List<(string usuario, string contenido, string fecha)> mensajes = new List<(string, string, string)>();
-                string[] mensajesgrupo = mensajesrecibidos.Split(';');
+                string[] mensajesgrupo = mensajesrecibidos.Split('°');
                 foreach (string mensaje in mensajesgrupo)
                 {
                     if (!string.IsNullOrWhiteSpace(mensaje))
@@ -892,7 +877,7 @@ namespace Chat_Interfaces
                     }
                 }
                 panel1.Controls.Clear();
-                _=mostrarmensajep(mensajes);
+                _ = mostrarmensajep(mensajes);
             }
         }
 
@@ -900,12 +885,90 @@ namespace Chat_Interfaces
         private async Task mostrarmensajeunico(string usuario, string contenido, string fecha)
         {
             //Obtenemos los mensajes del chat y agregamos el nuevo
-            await mostrarmensajep(new List<(string usuario, string contenido, string fecha)>{(usuario, contenido, fecha)});
+            await mostrarmensajep(new List<(string usuario, string contenido, string fecha)> { (usuario, contenido, fecha) });
             //Desplazamos el scroll al final
             if (panel1.Controls.Count > 0)
             {
                 panel1.ScrollControlIntoView(panel1.Controls[panel1.Controls.Count - 1]);
-            }            
+            }
         }
-    }
+        //Envia mensaje
+        private async Task Enviar(string mensaje)
+        {
+            byte[] datos = Encoding.UTF8.GetBytes(mensaje + "\n");
+            await flujo.WriteAsync(datos, 0, datos.Length);
+        }
+
+        //Carg grupos
+        private async Task CargarGrupos()
+        {
+            if (!conectado) return; 
+
+            listBox1.Items.Clear(); 
+            string grupos1 = "Mostrargrupo|";
+
+            //Pedimos al servidor
+            string res = await respuesta(grupos1 + _idUsuario);
+
+            if (string.IsNullOrEmpty(res)) return;
+
+            string[] grupos = res.Split(';');
+            string[] sep = grupos[0].Split('|');
+            grupos[0]=sep[1];
+            foreach (string grupo in grupos)
+            {
+                if (!string.IsNullOrWhiteSpace(grupo))
+                {
+                    listBox1.Items.Add(grupo);
+                    listBox1.Items.Add("--------------------------------------");
+                }
+            }
+        }
+        //Funcion para la barra de busqueda
+        private async void busqueda(object sender, EventArgs e)
+        {
+
+            timerBusqueda.Stop();
+
+
+            if (!conectado || cliente == null || !cliente.Connected) return;
+
+            string textoBusqueda = textBox1.Text;
+
+            try
+            {
+                if (string.IsNullOrEmpty(textoBusqueda))
+                {
+                    await CargarGrupos();
+                }
+                else
+                {
+                    string mensaje = "buscar_grupo|" + textoBusqueda + "|" + _idUsuario;
+
+                    string res = await respuesta(mensaje);
+                    if (string.IsNullOrEmpty(res)) return;
+
+                    string[] partes = res.Split('|');
+                    if (partes.Length < 2) return;
+
+                    string gruposCadena = partes[1];
+                    string[] grupos = gruposCadena.Split(';');
+
+                    listBox1.Items.Clear();
+                    foreach (string g in grupos)
+                    {
+                        if (!string.IsNullOrWhiteSpace(g))
+                        {
+                            listBox1.Items.Add(g);
+                            listBox1.Items.Add("--------------------------------------");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error en el buscador: " + ex.Message);
+            }
+        }
+     }
 }

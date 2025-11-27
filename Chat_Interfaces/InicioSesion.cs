@@ -17,7 +17,7 @@ namespace Chat_Interfaces
 
         TcpClient cliente;
         NetworkStream flujo;
-        Thread hilo;
+        
         bool ejecutando = true;
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -30,10 +30,7 @@ namespace Chat_Interfaces
             {
                 cliente.Close();
             }
-            if (hilo != null && hilo.IsAlive)
-            {
-                hilo.Join(500);
-            }
+            
             Application.Exit(); 
         }
         public InicioSesion()
@@ -96,11 +93,8 @@ namespace Chat_Interfaces
                 string mensaje = "1|" + textBoxEmail.Text + "|" + textBoxPassword.Text;
                 byte[] datos = Encoding.UTF8.GetBytes(mensaje);
                 flujo.Write(datos, 0, datos.Length);
-
-                if (hilo == null || !hilo.IsAlive)
-                {
+           
                     Task.Run(() => escuchaservidor());
-                }
             }
             catch (Exception ex)
             {
