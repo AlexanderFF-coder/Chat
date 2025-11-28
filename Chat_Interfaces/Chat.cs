@@ -969,6 +969,7 @@ namespace Chat_Interfaces
             {
                 if (string.IsNullOrEmpty(textoBusqueda))
                 {
+                    gruposant.Clear();
                     await CargarGrupos();
                 }
                 else
