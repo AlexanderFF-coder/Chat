@@ -21,6 +21,8 @@ namespace Chat_Interfaces
 {
     public partial class Chat : Form
     {
+        //Checamos los grupos previos
+        private List<string> gruposant = new List<string>();
         //Variables para server 
         TcpClient cliente;
         public NetworkStream flujo;
@@ -120,11 +122,11 @@ namespace Chat_Interfaces
             listBox1.Items.Clear();
 
             cliente = new TcpClient();
-
+            //Mandamos al cliente nuevos mensajes por si se encuentra perdida de informacion con el refresh para que mande mensajes prinicpales clave
             timerRefresco = new System.Windows.Forms.Timer();
-            timerRefresco.Interval = 500; // 2000 ms = 2 segundos (ajusta si quieres más rápido o lento)
-            timerRefresco.Tick += timerRefresco_Tick; // Vinculamos el evento
-            timerRefresco.Start(); // Arrancamos el timer
+            timerRefresco.Interval = 500; // 2000 ms = 2 segundos
+            timerRefresco.Tick += timerRefresco_Tick;
+            timerRefresco.Start();
         }
 
 
@@ -925,7 +927,6 @@ namespace Chat_Interfaces
         {
             if (!conectado) return; 
 
-            listBox1.Items.Clear(); 
             string grupos1 = "Mostrargrupo|";
 
             //Pedimos al servidor
@@ -936,7 +937,14 @@ namespace Chat_Interfaces
             string[] grupos = res.Split(';');
             string[] sep = grupos[0].Split('|');
             grupos[0]=sep[1];
-            foreach (string grupo in grupos)
+
+            //Checamos si no ay cambio engrupos
+            List <string> nuevos=grupos.Where(g=>!string.IsNullOrEmpty(g)).ToList();
+            if(gruposant.SequenceEqual(nuevos)) return;
+            gruposant = nuevos;
+            listBox1.BeginUpdate();
+            listBox1.Items.Clear();
+            foreach (string grupo in nuevos)
             {
                 if (!string.IsNullOrWhiteSpace(grupo))
                 {
@@ -944,6 +952,7 @@ namespace Chat_Interfaces
                     listBox1.Items.Add("--------------------------------------");
                 }
             }
+            listBox1.EndUpdate();
         }
         //Funcion para la barra de busqueda
         private async void busqueda(object sender, EventArgs e)
@@ -991,18 +1000,20 @@ namespace Chat_Interfaces
                 Console.WriteLine("Error en el buscador: " + ex.Message);
             }
         }
+        //Llamamos a mensajes principales para mandar mensajes con optimizacion solo en caso de ser necesario
         private void timerRefresco_Tick(object sender, EventArgs e)
         {
-            // Solo actualizamos si hay conexión y si el usuario seleccionó un grupo válido
-            if (conectado && cliente != null && cliente.Connected &&
-                listBox1.SelectedItem != null &&
-                !listBox1.SelectedItem.ToString().Contains("---"))
+            if (!conectado || cliente == null || !cliente.Connected)
             {
-                // Obtenemos el nombre del grupo actual
+                return; 
+            }
+            //Checamos si hay cambios
+            if (!string.IsNullOrWhiteSpace(textBox1.Text)) return;
+            _ = CargarGrupos();
+            if (listBox1.SelectedItem != null &&!listBox1.SelectedItem.ToString().Contains("---"))
+            {
+                
                 string nombreGrupo = listBox1.SelectedItem.ToString();
-
-                // Llamamos a tu función existente que descarga y pinta los mensajes
-                // Usamos _ = para descartar la tarea async y que no de warning
                 _ = mostrartodosmensajes(nombreGrupo);
             }
         }

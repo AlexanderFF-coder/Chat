@@ -132,7 +132,9 @@ namespace Chat_Interfaces
                 }
 
                 this.Close();
+                ch.Activate();
                 ch.Enabled = true;
+                
             }
             catch (Exception ex)
             {
